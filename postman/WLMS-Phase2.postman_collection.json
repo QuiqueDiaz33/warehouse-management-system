@@ -20,7 +20,8 @@
     { "key": "baseUrl", "value": "http://127.0.0.1:8000" },
     { "key": "username", "value": "" },
     { "key": "password", "value": "" },
-    { "key": "accessToken", "value": "" }
+    { "key": "accessToken", "value": "" },
+    { "key": "currentRole", "value": "" }
   ],
   "auth": {
     "type": "bearer",
@@ -88,7 +89,8 @@
       "event": [{ "listen": "test", "script": { "exec": [
         "pm.test('Status 200', () => pm.response.to.have.status(200));",
         "const body = pm.response.json();",
-        "pm.test('User schema is valid', () => { pm.expect(body.user_id).to.be.a('number'); pm.expect(body.username).to.be.a('string'); pm.expect(body.role).to.be.a('string'); });"
+        "pm.test('User schema is valid', () => { pm.expect(body.user_id).to.be.a('number'); pm.expect(body.username).to.be.a('string'); pm.expect(body.role).to.be.a('string'); });",
+        "pm.collectionVariables.set('currentRole', body.role);"
       ] } }]
     },
     {
@@ -113,24 +115,27 @@
       "name": "08 - Suppliers",
       "request": { "method": "GET", "url": "{{baseUrl}}/suppliers/" },
       "event": [{ "listen": "test", "script": { "exec": [
-        "pm.test('Status 200', () => pm.response.to.have.status(200));",
-        "pm.test('Suppliers response is an array', () => pm.expect(pm.response.json()).to.be.an('array'));"
+        "const allowed = ['Administrator', 'Warehouse Staff'].includes(pm.collectionVariables.get('currentRole'));",
+        "pm.test('Status matches warehouse authorization', () => pm.response.to.have.status(allowed ? 200 : 403));",
+        "pm.test('Suppliers content matches authorization', () => { const body = pm.response.json(); allowed ? pm.expect(body).to.be.an('array') : pm.expect(body).to.have.property('detail'); });"
       ] } }]
     },
     {
       "name": "09 - Customers",
       "request": { "method": "GET", "url": "{{baseUrl}}/customers/" },
       "event": [{ "listen": "test", "script": { "exec": [
-        "pm.test('Status 200', () => pm.response.to.have.status(200));",
-        "pm.test('Customers response is an array', () => pm.expect(pm.response.json()).to.be.an('array'));"
+        "const allowed = ['Administrator', 'Logistics Staff'].includes(pm.collectionVariables.get('currentRole'));",
+        "pm.test('Status matches logistics authorization', () => pm.response.to.have.status(allowed ? 200 : 403));",
+        "pm.test('Customers content matches authorization', () => { const body = pm.response.json(); allowed ? pm.expect(body).to.be.an('array') : pm.expect(body).to.have.property('detail'); });"
       ] } }]
     },
     {
       "name": "10 - Users",
       "request": { "method": "GET", "url": "{{baseUrl}}/users/" },
       "event": [{ "listen": "test", "script": { "exec": [
-        "pm.test('Status 200', () => pm.response.to.have.status(200));",
-        "pm.test('Users response is an array', () => pm.expect(pm.response.json()).to.be.an('array'));"
+        "const allowed = pm.collectionVariables.get('currentRole') === 'Administrator';",
+        "pm.test('Status matches administrator authorization', () => pm.response.to.have.status(allowed ? 200 : 403));",
+        "pm.test('Users content matches authorization', () => { const body = pm.response.json(); allowed ? pm.expect(body).to.be.an('array') : pm.expect(body).to.have.property('detail'); });"
       ] } }]
     },
     {
@@ -145,32 +150,36 @@
       "name": "12 - Purchase orders",
       "request": { "method": "GET", "url": "{{baseUrl}}/purchase-orders/" },
       "event": [{ "listen": "test", "script": { "exec": [
-        "pm.test('Status 200', () => pm.response.to.have.status(200));",
-        "pm.test('Purchase orders response is an array', () => pm.expect(pm.response.json()).to.be.an('array'));"
+        "const allowed = ['Administrator', 'Warehouse Staff'].includes(pm.collectionVariables.get('currentRole'));",
+        "pm.test('Status matches warehouse authorization', () => pm.response.to.have.status(allowed ? 200 : 403));",
+        "pm.test('Purchase orders content matches authorization', () => { const body = pm.response.json(); allowed ? pm.expect(body).to.be.an('array') : pm.expect(body).to.have.property('detail'); });"
       ] } }]
     },
     {
       "name": "13 - Goods receipts",
       "request": { "method": "GET", "url": "{{baseUrl}}/grns/" },
       "event": [{ "listen": "test", "script": { "exec": [
-        "pm.test('Status 200', () => pm.response.to.have.status(200));",
-        "pm.test('GRN response is an array', () => pm.expect(pm.response.json()).to.be.an('array'));"
+        "const allowed = ['Administrator', 'Warehouse Staff'].includes(pm.collectionVariables.get('currentRole'));",
+        "pm.test('Status matches warehouse authorization', () => pm.response.to.have.status(allowed ? 200 : 403));",
+        "pm.test('GRN content matches authorization', () => { const body = pm.response.json(); allowed ? pm.expect(body).to.be.an('array') : pm.expect(body).to.have.property('detail'); });"
       ] } }]
     },
     {
       "name": "14 - Sales orders",
       "request": { "method": "GET", "url": "{{baseUrl}}/sales-orders/" },
       "event": [{ "listen": "test", "script": { "exec": [
-        "pm.test('Status 200', () => pm.response.to.have.status(200));",
-        "pm.test('Sales orders response is an array', () => pm.expect(pm.response.json()).to.be.an('array'));"
+        "const allowed = ['Administrator', 'Logistics Staff'].includes(pm.collectionVariables.get('currentRole'));",
+        "pm.test('Status matches logistics authorization', () => pm.response.to.have.status(allowed ? 200 : 403));",
+        "pm.test('Sales orders content matches authorization', () => { const body = pm.response.json(); allowed ? pm.expect(body).to.be.an('array') : pm.expect(body).to.have.property('detail'); });"
       ] } }]
     },
     {
       "name": "15 - Delivery challans",
       "request": { "method": "GET", "url": "{{baseUrl}}/delivery-challans/" },
       "event": [{ "listen": "test", "script": { "exec": [
-        "pm.test('Status 200', () => pm.response.to.have.status(200));",
-        "pm.test('Delivery challans response is an array', () => pm.expect(pm.response.json()).to.be.an('array'));"
+        "const allowed = ['Administrator', 'Logistics Staff'].includes(pm.collectionVariables.get('currentRole'));",
+        "pm.test('Status matches logistics authorization', () => pm.response.to.have.status(allowed ? 200 : 403));",
+        "pm.test('Delivery challans content matches authorization', () => { const body = pm.response.json(); allowed ? pm.expect(body).to.be.an('array') : pm.expect(body).to.have.property('detail'); });"
       ] } }]
     }
   ]
