@@ -1,61 +1,145 @@
-name: CI
+name: Phase 2 quality pipeline
 
 on:
   push:
     branches: [dev, qa, main]
   pull_request:
     branches: [dev, qa, main]
+  workflow_dispatch:
 
 permissions:
   contents: read
 
 jobs:
-  backend-unit-tests:
-    name: Backend unit tests
+  build:
+    name: Build and syntax validation
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
-
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.13"
           cache: pip
-
       - name: Install backend dependencies
-        run: python -m pip install -r requirements-dev.txt
-
-      - name: Run backend unit tests
-        env:
-          SECRET_KEY: ci-only-test-secret
-        run: python -m pytest --cov=backend --cov-report=term-missing --cov-report=xml:coverage-backend.xml
-
-  frontend-unit-tests:
-    name: Frontend unit tests and build
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: wlms-frontend
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
-
+        run: python -m pip install -r requirements.txt
+      - name: Validate backend syntax
+        run: python -m compileall -q backend
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: "22"
           cache: npm
           cache-dependency-path: wlms-frontend/package-lock.json
-
       - name: Install frontend dependencies
+        working-directory: wlms-frontend
         run: npm ci
-
-      - name: Run frontend unit tests
-        run: npm run test:coverage
-
       - name: Build frontend
+        working-directory: wlms-frontend
         env:
           VITE_API_BASE_URL: https://example.invalid
         run: npm run build
 
+  unit-tests:
+    name: Unit tests and coverage
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+      - name: Install backend test dependencies
+        run: python -m pip install -r requirements-dev.txt
+      - name: Run backend unit tests
+        env:
+          SECRET_KEY: ci-only-test-secret
+        run: python -m pytest --cov=backend --cov-report=term-missing --cov-report=xml:coverage-backend.xml
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: wlms-frontend/package-lock.json
+      - name: Install frontend dependencies
+        working-directory: wlms-frontend
+        run: npm ci
+      - name: Run frontend unit tests
+        working-directory: wlms-frontend
+        run: npm run test:coverage
+      - name: Upload coverage reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-reports
+          path: |
+            coverage-backend.xml
+            wlms-frontend/coverage/lcov.info
+          retention-days: 14
+
+  static-analysis:
+    name: SonarCloud analysis and quality gate
+    needs: unit-tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Download coverage reports
+        uses: actions/download-artifact@v4
+        with:
+          name: coverage-reports
+      - name: Run SonarCloud analysis
+        uses: SonarSource/sonarqube-scan-action@v6
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        with:
+          args: >
+            -Dsonar.organization=${{ vars.SONAR_ORGANIZATION }}
+            -Dsonar.projectKey=${{ vars.SONAR_PROJECT_KEY }}
+            -Dsonar.qualitygate.wait=true
+            -Dsonar.qualitygate.timeout=300
+
+  api-tests:
+    name: Postman API tests
+    needs: static-analysis
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Run 15 API requests with Newman
+        env:
+          API_BASE_URL: ${{ vars.API_BASE_URL }}
+          API_TEST_USERNAME: ${{ secrets.API_TEST_USERNAME }}
+          API_TEST_PASSWORD: ${{ secrets.API_TEST_PASSWORD }}
+        run: >
+          npx --yes newman@6 run postman/WLMS-Phase2.postman_collection.json
+          --env-var "baseUrl=$API_BASE_URL"
+          --env-var "username=$API_TEST_USERNAME"
+          --env-var "password=$API_TEST_PASSWORD"
+          --reporters cli,junit
+          --reporter-junit-export newman/results.xml
+      - name: Upload Newman report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: newman-results
+          path: newman/results.xml
+          retention-days: 14
+
+  deploy-ready:
+    name: Deployment gate
+    needs: api-tests
+    runs-on: ubuntu-latest
+    environment: ${{ github.ref_name == 'main' && 'production' || 'qa' }}
+    steps:
+      - name: Confirm validated artifact
+        run: echo "Build, unit tests, quality gate, and API tests passed for $GITHUB_REF_NAME."
