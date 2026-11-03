@@ -1,11 +1,19 @@
 from datetime import datetime,timedelta,timezone
+import os
+import secrets
+
 from jose import JWTError,jwt
 from passlib.context import CryptContext
 from fastapi import Depends,HTTPException
 from fastapi.security import OAuth2PasswordBearer
+from dotenv import load_dotenv
 from database import get_connection
 
-SECRET_KEY ="wlms-super-secret-key"
+load_dotenv()
+
+# Azure must provide SECRET_KEY. The generated fallback keeps local development
+# usable without committing a secret; tokens reset whenever the process restarts.
+SECRET_KEY = os.getenv("SECRET_KEY") or secrets.token_urlsafe(64)
 ALGORITHM = "HS256"
 TOKEN_EXPIRE_MINUTES = 60 * 8
 
