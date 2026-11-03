@@ -13,7 +13,7 @@ function Users() {
   const [editForm] = Form.useForm()
 
   const fetchUsers = () => {
-    api.get("/users")
+    api.get("/users/")
       .then(res => { setUsers(res.data); setLoading(false) })
       .catch(() => setLoading(false))
   }
@@ -22,7 +22,7 @@ function Users() {
 
   const handleCreate = async (values) => {
     try {
-      await api.post("/users", values)
+      await api.post("/users/", values)
       message.success("User created successfully")
       setCreateModal(false)
       createForm.resetFields()

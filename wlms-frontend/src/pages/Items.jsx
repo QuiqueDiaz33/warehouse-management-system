@@ -13,7 +13,7 @@ function Items() {
   const isAdmin = user?.role === "Administrator"
 
   const fetchItems = () => {
-    api.get("/items")
+    api.get("/items/")
       .then(res => { setItems(res.data); setLoading(false) })
       .catch(() => setLoading(false))
   }
@@ -21,12 +21,12 @@ function Items() {
   useEffect(() => {
     fetchItems()
     // Fetch UOMs for the dropdown
-    api.get("/uoms").then(res => setUoms(res.data)).catch(() => {})
+    api.get("/uoms/").then(res => setUoms(res.data)).catch(() => {})
   }, [])
 
   const handleCreate = async (values) => {
     try {
-      await api.post("/items", values)
+      await api.post("/items/", values)
       message.success("Item created successfully")
       setModalOpen(false)
       form.resetFields()

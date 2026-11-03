@@ -15,7 +15,7 @@ function Customers() {
   const isAdmin = user?.role === "Administrator"
 
   const fetchCustomers = () => {
-    api.get("/customers")
+    api.get("/customers/")
       .then(res => { setCustomers(res.data); setLoading(false) })
       .catch(() => setLoading(false))
   }
@@ -24,7 +24,7 @@ function Customers() {
 
   const handleCreate = async (values) => {
     try {
-      await api.post("/customers", values)
+      await api.post("/customers/", values)
       message.success("Customer created successfully")
       setCreateModal(false)
       createForm.resetFields()

@@ -38,12 +38,12 @@ def get_items(current_user: dict = Depends(get_current_user) ):
         cursor.close()
         conn.close()
         
-@router.get("/",response_model=ItemResponse)
+@router.post("/",response_model=ItemResponse)
 def create_item(item: ItemCreate,current_user: dict= Depends(require_admin)):
     conn = get_connection()
     cursor= conn.cursor()
     try:
-        cursor.execute("select uom_symbol from unit_of_measure where uom_id = %s",(item.uom_id))
+        cursor.execute("select uom_symbol from unit_of_measure where uom_id = %s", (item.uom_id,))
         uom = cursor.fetchone()
         if not uom:
             raise HTTPException(status_code=400,detail=f"UOM {item.uom_id} does not exist ")

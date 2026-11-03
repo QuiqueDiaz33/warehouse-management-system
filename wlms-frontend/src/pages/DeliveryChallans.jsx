@@ -22,7 +22,7 @@ function DeliveryChallans() {
   const user = JSON.parse(localStorage.getItem("user"))
 
   const fetchChallans = () => {
-    api.get("/delivery-challans")
+    api.get("/delivery-challans/")
       .then(res => { setChallans(res.data); setLoading(false) })
       .catch(() => setLoading(false))
   }
@@ -30,15 +30,15 @@ function DeliveryChallans() {
   useEffect(() => {
     fetchChallans()
     // Only Packed SOs can have a DC created
-    api.get("/sales-orders").then(res =>
+    api.get("/sales-orders/").then(res =>
       setSalesOrders(res.data.filter(so => so.status === "Packed"))
     )
-    api.get("/items").then(res => setItems(res.data))
+    api.get("/items/").then(res => setItems(res.data))
   }, [])
 
   const handleCreateDC = async (values) => {
     try {
-      const res = await api.post("/delivery-challans", {
+      const res = await api.post("/delivery-challans/", {
         so_id:          values.so_id,
         created_by:     user.user_id,
         driver_name:    values.driver_name,

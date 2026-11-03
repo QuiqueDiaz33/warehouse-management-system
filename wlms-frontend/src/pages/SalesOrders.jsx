@@ -22,20 +22,20 @@ function SalesOrders() {
   const user = JSON.parse(localStorage.getItem("user"))
 
   const fetchOrders = () => {
-    api.get("/sales-orders")
+    api.get("/sales-orders/")
       .then(res => { setOrders(res.data); setLoading(false) })
       .catch(() => setLoading(false))
   }
 
   useEffect(() => {
     fetchOrders()
-    api.get("/customers").then(res => setCustomers(res.data))
-    api.get("/items").then(res => setItems(res.data))
+    api.get("/customers/").then(res => setCustomers(res.data))
+    api.get("/items/").then(res => setItems(res.data))
   }, [])
 
   const handleCreateSO = async (values) => {
     try {
-      const res = await api.post("/sales-orders", {
+      const res = await api.post("/sales-orders/", {
         customer_id: values.customer_id,
         created_by:  user.user_id
       })

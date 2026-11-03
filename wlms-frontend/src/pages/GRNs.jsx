@@ -8,7 +8,7 @@ function GRNs() {
     const [loading, setLoading] = useState(true)
 
     useEffect(() => {
-    api.get("/grns")
+    api.get("/grns/")
         .then(res => { setGrns(res.data); setLoading(false) })
         .catch(() => setLoading(false))
     }, [])

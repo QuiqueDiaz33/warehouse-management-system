@@ -8,7 +8,7 @@ function Stock() {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        api.get('/stock')
+        api.get('/stock/')
             .then(res => {
                 setStock(res.data);
                 setLoading(false);

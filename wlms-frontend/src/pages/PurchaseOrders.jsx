@@ -24,15 +24,15 @@ function PurchaseOrders() {
   const user = JSON.parse(localStorage.getItem("user"))
 
   const fetchPOs = () => {
-    api.get("/purchase-orders")
+    api.get("/purchase-orders/")
       .then(res => { setPos(res.data); setLoading(false) })
       .catch(() => setLoading(false))
   }
 
   useEffect(() => {
     fetchPOs()
-    api.get("/suppliers").then(res => setSuppliers(res.data))
-    api.get("/items").then(res => setItems(res.data))
+    api.get("/suppliers/").then(res => setSuppliers(res.data))
+    api.get("/items/").then(res => setItems(res.data))
   }, [])
 
   // Create PO header
@@ -42,7 +42,7 @@ function PurchaseOrders() {
         supplier_id: values.supplier_id,
         created_by:  user.user_id
       }
-      const res = await api.post("/purchase-orders", payload)
+      const res = await api.post("/purchase-orders/", payload)
       message.success(`PO #${res.data.po_id} created! Now add lines to it.`)
       setCreateModal(false)
       createForm.resetFields()

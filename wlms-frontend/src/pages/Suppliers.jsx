@@ -15,7 +15,7 @@ function Suppliers() {
   const isAdmin = user?.role === "Administrator"
 
   const fetchSuppliers = () => {
-    api.get("/suppliers")
+    api.get("/suppliers/")
       .then(res => { setSuppliers(res.data); setLoading(false) })
       .catch(() => setLoading(false))
   }
@@ -24,7 +24,7 @@ function Suppliers() {
 
   const handleCreate = async (values) => {
     try {
-      await api.post("/suppliers", values)
+      await api.post("/suppliers/", values)
       message.success("Supplier created successfully")
       setCreateModal(false)
       createForm.resetFields()
