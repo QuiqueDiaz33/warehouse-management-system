@@ -4,4 +4,8 @@ __pycache__/
 *.pyc
 .coverage
 coverage.xml
+coverage-backend.xml
 htmlcov/
+load-tests/results/
+newman/
+.scannerwork/
