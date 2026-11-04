@@ -7,7 +7,20 @@ const baseUrl = __ENV.BASE_URL || "http://127.0.0.1:8000";
 const username = __ENV.WLMS_USERNAME;
 const password = __ENV.WLMS_PASSWORD;
 
+function isJsonArray(response) {
+  if (response.status !== 200 || !response.body) {
+    return false;
+  }
+
+  try {
+    return Array.isArray(response.json());
+  } catch (_error) {
+    return false;
+  }
+}
+
 export const options = {
+  setupTimeout: "180s",
   stages: [
     { duration: "1m", target: 50 },
     { duration: "5m", target: 50 },
@@ -41,28 +54,33 @@ export function setup() {
 }
 
 export default function (data) {
-  const params = { headers: { Authorization: `Bearer ${data.token}` } };
+  const params = {
+    headers: { Authorization: `Bearer ${data.token}` },
+    timeout: "30s",
+  };
 
   group("critical inventory reads", () => {
     const items = http.get(`${baseUrl}/items/`, params);
     const itemsOk = check(items, {
       "items returns 200": (r) => r.status === 200,
-      "items returns JSON array": (r) => Array.isArray(r.json()),
+      "items returns JSON array": isJsonArray,
     });
     errorRate.add(!itemsOk);
 
     const stock = http.get(`${baseUrl}/stock/`, params);
     const stockOk = check(stock, {
       "stock returns 200": (r) => r.status === 200,
-      "stock returns JSON array": (r) => Array.isArray(r.json()),
+      "stock returns JSON array": isJsonArray,
     });
     errorRate.add(!stockOk);
   });
 }
 
 export function handleSummary(data) {
+  const requestCount = data.metrics.http_reqs?.values?.count || 0;
+
   return {
     "load-tests/results/summary.json": JSON.stringify(data, null, 2),
-    stdout: `WLMS load test completed: ${data.metrics.http_reqs.values.count} requests\n`,
+    stdout: `WLMS load test completed: ${requestCount} requests\n`,
   };
 }
