@@ -20,3 +20,5 @@ El escenario aumenta de 0 a 50 usuarios virtuales durante un minuto, sostiene 50
 - Throughput: se registra como `http_reqs/s` en el resumen de k6.
 
 Después de ejecutar contra QA, el archivo `load-tests/results/summary.json` debe conservarse como artefacto del pipeline. La conclusión académica debe comparar promedio, p95, throughput y errores contra los requerimientos no funcionales definidos en E1; no debe declararse cumplimiento antes de contar con resultados reales.
+
+El resultado de la ejecución académica se documenta en `docs/e14-load-test-results.md`.
