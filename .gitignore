@@ -5,6 +5,7 @@ __pycache__/
 .coverage
 coverage.xml
 coverage-backend.xml
+coverage-backend.json
 htmlcov/
 load-tests/results/
 newman/
