@@ -22,7 +22,7 @@ Fecha de corte: 4 de noviembre de 2026.
 
 ## E11. Pruebas de API
 
-- Colección Postman versionada con 22 solicitudes (111 aserciones) y flujo de compras encadenado.
+- Colección Postman versionada con 22 solicitudes (111 aserciones) y flujo de ventas encadenado.
 - Ejecución Newman automatizada y aprobada en el pipeline.
 - El informe final debe incluir el flujo encadenado y una captura del reporte
   Newman generado como artefacto.
