@@ -115,6 +115,14 @@ jobs:
         uses: actions/setup-node@v5
         with:
           node-version: "22"
+      - name: Warm up Azure API
+        env:
+          API_BASE_URL: ${{ vars.API_BASE_URL }}
+        run: >
+          curl --fail --silent --show-error
+          --retry 5 --retry-all-errors --retry-delay 5
+          --max-time 90 --output /dev/null
+          "$API_BASE_URL/"
       - name: Run 15 API requests with Newman
         env:
           API_BASE_URL: ${{ vars.API_BASE_URL }}
