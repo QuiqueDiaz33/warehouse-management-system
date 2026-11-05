@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "wlms-phase2-api-tests",
     "name": "WLMS Phase 2 API Tests",
-    "description": "22 solicitudes automatizadas con aserciones de estado, esquema JSON y contenido. Incluye un flujo de negocio encadenado: login -> usuario -> ítem -> crear proveedor -> crear orden de compra -> agregar línea -> verificar detalle -> cancelar -> verificar estado -> rechazar segunda cancelación. La orden de prueba termina cancelada para no alterar inventario.",
+    "description": "22 solicitudes automatizadas con aserciones de estado, esquema JSON y contenido. Incluye un flujo de negocio encadenado de ventas: login -> usuario -> cliente -> crear orden de venta -> avanzar a Processing -> verificar -> cancelar -> verificar Cancelled -> rechazar avance y segunda cancelación. La orden no lleva líneas, por lo que no reserva ni altera inventario.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "event": [
@@ -42,23 +42,15 @@
       "value": ""
     },
     {
-      "key": "itemId",
+      "key": "customerId",
       "value": ""
     },
     {
-      "key": "itemName",
+      "key": "customerName",
       "value": ""
     },
     {
-      "key": "supplierId",
-      "value": ""
-    },
-    {
-      "key": "supplierName",
-      "value": ""
-    },
-    {
-      "key": "poId",
+      "key": "soId",
       "value": ""
     }
   ],
@@ -236,9 +228,7 @@
               "pm.test('Status 200', () => pm.response.to.have.status(200));",
               "const body = pm.response.json();",
               "pm.test('Items are an array', () => pm.expect(body).to.be.an('array'));",
-              "pm.test('Item schema is valid when present', () => { if (body.length) { pm.expect(body[0]).to.include.keys('item_id','item_name','reorder_level','uom_symbol','is_active'); } });",
-              "pm.test('At least one item exists for the purchasing flow', () => pm.expect(body.length).to.be.above(0));",
-              "if (body.length) { pm.collectionVariables.set('itemId', body[0].item_id); pm.collectionVariables.set('itemName', body[0].item_name); }"
+              "pm.test('Item schema is valid when present', () => { if (body.length) { pm.expect(body[0]).to.include.keys('item_id','item_name','reorder_level','uom_symbol','is_active'); } });"
             ]
           }
         }
@@ -297,7 +287,8 @@
               "const allowed = ['Administrator', 'Logistics Staff'].includes(pm.collectionVariables.get('currentRole'));",
               "pm.test('Status matches logistics authorization', () => pm.response.to.have.status(allowed ? 200 : 403));",
               "pm.test('Customers content matches authorization', () => { const body = pm.response.json(); allowed ? pm.expect(body).to.be.an('array') : pm.expect(body).to.have.property('detail'); });",
-              "pm.test('Response matches JSON schema', () => { if (pm.response.code === 200) { pm.response.to.have.jsonSchema({\"type\": \"array\", \"items\": {\"type\": \"object\", \"required\": [\"customer_id\", \"customer_name\", \"phone\", \"address\"], \"properties\": {\"customer_id\": {\"type\": \"integer\"}, \"customer_name\": {\"type\": \"string\"}, \"phone\": {\"type\": [\"string\", \"null\"]}, \"address\": {\"type\": [\"string\", \"null\"]}}}}); } else { pm.response.to.have.jsonSchema({\"type\": \"object\", \"required\": [\"detail\"], \"properties\": {\"detail\": {}}}); } });"
+              "pm.test('Response matches JSON schema', () => { if (pm.response.code === 200) { pm.response.to.have.jsonSchema({\"type\": \"array\", \"items\": {\"type\": \"object\", \"required\": [\"customer_id\", \"customer_name\", \"phone\", \"address\"], \"properties\": {\"customer_id\": {\"type\": \"integer\"}, \"customer_name\": {\"type\": \"string\"}, \"phone\": {\"type\": [\"string\", \"null\"]}, \"address\": {\"type\": [\"string\", \"null\"]}}}}); } else { pm.response.to.have.jsonSchema({\"type\": \"object\", \"required\": [\"detail\"], \"properties\": {\"detail\": {}}}); } });",
+              "if (pm.response.code === 200 && pm.response.json().length) { const c0 = pm.response.json()[0]; pm.collectionVariables.set('customerId', c0.customer_id); pm.collectionVariables.set('customerName', c0.customer_name); }"
             ]
           }
         }
@@ -423,10 +414,10 @@
       ]
     },
     {
-      "name": "16 - Flow: create supplier",
+      "name": "16 - Flow: create sales order",
       "request": {
         "method": "POST",
-        "url": "{{baseUrl}}/suppliers/",
+        "url": "{{baseUrl}}/sales-orders/",
         "header": [
           {
             "key": "Content-Type",
@@ -435,7 +426,7 @@
         ],
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"supplier_name\": \"{{supplierName}}\",\n  \"email\": \"qa-newman@example.com\",\n  \"phone\": \"00000000\",\n  \"address\": \"Pipeline CI\"\n}",
+          "raw": "{\n  \"customer_id\": \"{{customerId}}\",\n  \"created_by\": \"{{userId}}\"\n}",
           "options": {
             "raw": {
               "language": "json"
@@ -445,32 +436,26 @@
       },
       "event": [
         {
-          "listen": "prerequest",
-          "script": {
-            "exec": [
-              "pm.collectionVariables.set('supplierName', 'QA Newman ' + Date.now());"
-            ]
-          }
-        },
-        {
           "listen": "test",
           "script": {
             "exec": [
+              "pm.test('Flow preconditions: logistics role and an existing customer', () => { pm.expect(['Administrator','Logistics Staff']).to.include(pm.collectionVariables.get('currentRole')); pm.expect(pm.collectionVariables.get('customerId')).to.not.be.oneOf([undefined, null, '']); });",
               "pm.test('Status 200', () => pm.response.to.have.status(200));",
               "const body = pm.response.json();",
-              "pm.test('Supplier matches JSON schema', () => pm.response.to.have.jsonSchema({\"type\": \"object\", \"required\": [\"supplier_id\", \"supplier_name\", \"email\", \"phone\", \"address\", \"is_active\"], \"properties\": {\"supplier_id\": {\"type\": \"integer\"}, \"supplier_name\": {\"type\": \"string\"}, \"email\": {\"type\": [\"string\", \"null\"]}, \"phone\": {\"type\": [\"string\", \"null\"]}, \"address\": {\"type\": [\"string\", \"null\"]}, \"is_active\": {\"type\": \"boolean\"}}}));",
-              "pm.test('Supplier content is persisted', () => { pm.expect(body.supplier_name).to.eql(pm.collectionVariables.get('supplierName')); pm.expect(body.is_active).to.be.true; });",
-              "pm.collectionVariables.set('supplierId', body.supplier_id);"
+              "pm.test('Sales order matches JSON schema', () => pm.response.to.have.jsonSchema({\"type\": \"object\", \"required\": [\"so_id\", \"customer_id\", \"created_by\", \"status\", \"payment_status\"], \"properties\": {\"so_id\": {\"type\": \"integer\"}, \"customer_id\": {\"type\": \"integer\"}, \"created_by\": {\"type\": \"integer\"}, \"status\": {\"type\": \"string\"}, \"payment_status\": {\"type\": \"string\"}}}));",
+              "pm.test('SO is linked to the customer and current user', () => { pm.expect(body.customer_id).to.eql(Number(pm.collectionVariables.get('customerId'))); pm.expect(body.created_by).to.eql(Number(pm.collectionVariables.get('userId'))); });",
+              "pm.test('New SO starts Pending and Unpaid', () => { pm.expect(body.status).to.eql('Pending'); pm.expect(body.payment_status).to.eql('Unpaid'); });",
+              "pm.collectionVariables.set('soId', body.so_id);"
             ]
           }
         }
       ]
     },
     {
-      "name": "17 - Flow: create purchase order",
+      "name": "17 - Flow: advance sales order to Processing",
       "request": {
         "method": "POST",
-        "url": "{{baseUrl}}/purchase-orders/",
+        "url": "{{baseUrl}}/sales-orders/advance",
         "header": [
           {
             "key": "Content-Type",
@@ -479,7 +464,7 @@
         ],
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"supplier_id\": \"{{supplierId}}\",\n  \"created_by\": \"{{userId}}\"\n}",
+          "raw": "{\n  \"so_id\": \"{{soId}}\"\n}",
           "options": {
             "raw": {
               "language": "json"
@@ -493,55 +478,18 @@
           "script": {
             "exec": [
               "pm.test('Status 200', () => pm.response.to.have.status(200));",
-              "const body = pm.response.json();",
-              "pm.test('Purchase order matches JSON schema', () => pm.response.to.have.jsonSchema({\"type\": \"object\", \"required\": [\"po_id\", \"supplier_id\", \"created_by\", \"status\"], \"properties\": {\"po_id\": {\"type\": \"integer\"}, \"supplier_id\": {\"type\": \"integer\"}, \"created_by\": {\"type\": \"integer\"}, \"status\": {\"type\": \"string\"}}}));",
-              "pm.test('PO is linked to the new supplier and user', () => { pm.expect(body.supplier_id).to.eql(Number(pm.collectionVariables.get('supplierId'))); pm.expect(body.created_by).to.eql(Number(pm.collectionVariables.get('userId'))); });",
-              "pm.test('New PO starts as Pending', () => pm.expect(body.status).to.eql('Pending'));",
-              "pm.collectionVariables.set('poId', body.po_id);"
+              "pm.test('Response matches JSON schema', () => pm.response.to.have.jsonSchema({\"type\": \"object\", \"required\": [\"message\"], \"properties\": {\"message\": {\"type\": \"string\"}}}));",
+              "pm.test('Advance is confirmed for this SO', () => pm.expect(pm.response.json().message).to.include(String(pm.collectionVariables.get('soId'))));"
             ]
           }
         }
       ]
     },
     {
-      "name": "18 - Flow: add purchase order line",
-      "request": {
-        "method": "POST",
-        "url": "{{baseUrl}}/purchase-orders/lines",
-        "header": [
-          {
-            "key": "Content-Type",
-            "value": "application/json"
-          }
-        ],
-        "body": {
-          "mode": "raw",
-          "raw": "{\n  \"po_id\": \"{{poId}}\",\n  \"item_id\": \"{{itemId}}\",\n  \"quantity\": 5,\n  \"unit_cost\": 10\n}",
-          "options": {
-            "raw": {
-              "language": "json"
-            }
-          }
-        }
-      },
-      "event": [
-        {
-          "listen": "test",
-          "script": {
-            "exec": [
-              "pm.test('Status 200', () => pm.response.to.have.status(200));",
-              "pm.test('Line response matches JSON schema', () => pm.response.to.have.jsonSchema({\"type\": \"object\", \"required\": [\"message\"], \"properties\": {\"message\": {\"type\": \"string\"}}}));",
-              "pm.test('Line was accepted', () => pm.expect(pm.response.json().message).to.include('Line added'));"
-            ]
-          }
-        }
-      ]
-    },
-    {
-      "name": "19 - Flow: verify purchase order detail",
+      "name": "18 - Flow: verify sales order detail",
       "request": {
         "method": "GET",
-        "url": "{{baseUrl}}/purchase-orders/{{poId}}"
+        "url": "{{baseUrl}}/sales-orders/{{soId}}"
       },
       "event": [
         {
@@ -550,19 +498,19 @@
             "exec": [
               "pm.test('Status 200', () => pm.response.to.have.status(200));",
               "const body = pm.response.json();",
-              "pm.test('PO detail matches JSON schema', () => pm.response.to.have.jsonSchema({\"type\": \"object\", \"required\": [\"po_id\", \"supplier_name\", \"created_by\", \"status\", \"lines\"], \"properties\": {\"po_id\": {\"type\": \"integer\"}, \"supplier_name\": {\"type\": \"string\"}, \"created_by\": {\"type\": \"string\"}, \"status\": {\"type\": \"string\"}, \"lines\": {\"type\": \"array\", \"items\": {\"type\": \"object\", \"required\": [\"item_name\", \"ordered_quantity\", \"received_quantity\", \"pending_quantity\", \"unit_cost\", \"line_total\", \"uom_symbol\"], \"properties\": {\"item_name\": {\"type\": \"string\"}, \"ordered_quantity\": {\"type\": \"number\"}, \"received_quantity\": {\"type\": \"number\"}, \"pending_quantity\": {\"type\": \"number\"}, \"unit_cost\": {\"type\": \"number\"}, \"line_total\": {\"type\": \"number\"}, \"uom_symbol\": {\"type\": \"string\"}}}}}}));",
-              "pm.test('Header reflects chained data', () => { pm.expect(body.po_id).to.eql(Number(pm.collectionVariables.get('poId'))); pm.expect(body.supplier_name).to.eql(pm.collectionVariables.get('supplierName')); pm.expect(body.status).to.eql('Pending'); });",
-              "pm.test('Line totals are calculated', () => { pm.expect(body.lines).to.have.lengthOf(1); const l = body.lines[0]; pm.expect(l.item_name).to.eql(pm.collectionVariables.get('itemName')); pm.expect(Number(l.ordered_quantity)).to.eql(5); pm.expect(Number(l.pending_quantity)).to.eql(5); pm.expect(Number(l.line_total)).to.eql(50); });"
+              "pm.test('SO detail matches JSON schema', () => pm.response.to.have.jsonSchema({\"type\": \"object\", \"required\": [\"so_id\", \"customer_name\", \"created_by\", \"status\", \"payment_status\", \"lines\"], \"properties\": {\"so_id\": {\"type\": \"integer\"}, \"customer_name\": {\"type\": \"string\"}, \"created_by\": {\"type\": \"string\"}, \"status\": {\"type\": \"string\"}, \"payment_status\": {\"type\": \"string\"}, \"lines\": {\"type\": \"array\", \"items\": {\"type\": \"object\", \"required\": [\"item_name\", \"ordered_quantity\", \"shipped_quantity\", \"pending_quantity\", \"unit_price\", \"line_total\", \"uom_symbol\"], \"properties\": {\"item_name\": {\"type\": \"string\"}, \"ordered_quantity\": {\"type\": \"number\"}, \"shipped_quantity\": {\"type\": \"number\"}, \"pending_quantity\": {\"type\": \"number\"}, \"unit_price\": {\"type\": \"number\"}, \"line_total\": {\"type\": \"number\"}, \"uom_symbol\": {\"type\": \"string\"}}}}}}));",
+              "pm.test('Detail reflects chained data', () => { pm.expect(body.so_id).to.eql(Number(pm.collectionVariables.get('soId'))); pm.expect(body.customer_name).to.eql(pm.collectionVariables.get('customerName')); });",
+              "pm.test('Status advanced Pending -> Processing', () => pm.expect(body.status).to.eql('Processing'));"
             ]
           }
         }
       ]
     },
     {
-      "name": "20 - Flow: cancel purchase order",
+      "name": "19 - Flow: cancel sales order",
       "request": {
         "method": "POST",
-        "url": "{{baseUrl}}/purchase-orders/cancel",
+        "url": "{{baseUrl}}/sales-orders/cancel",
         "header": [
           {
             "key": "Content-Type",
@@ -571,7 +519,7 @@
         ],
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"po_id\": \"{{poId}}\"\n}",
+          "raw": "{\n  \"so_id\": \"{{soId}}\"\n}",
           "options": {
             "raw": {
               "language": "json"
@@ -585,18 +533,18 @@
           "script": {
             "exec": [
               "pm.test('Status 200', () => pm.response.to.have.status(200));",
-              "pm.test('Cancel response matches JSON schema', () => pm.response.to.have.jsonSchema({\"type\": \"object\", \"required\": [\"message\"], \"properties\": {\"message\": {\"type\": \"string\"}}}));",
-              "pm.test('Cancellation confirms the PO', () => pm.expect(pm.response.json().message).to.include(String(pm.collectionVariables.get('poId'))));"
+              "pm.test('Response matches JSON schema', () => pm.response.to.have.jsonSchema({\"type\": \"object\", \"required\": [\"message\"], \"properties\": {\"message\": {\"type\": \"string\"}}}));",
+              "pm.test('Cancellation releases reservations', () => { const m = pm.response.json().message; pm.expect(m).to.include(String(pm.collectionVariables.get('soId'))); pm.expect(m).to.include('Reserved stock released'); });"
             ]
           }
         }
       ]
     },
     {
-      "name": "21 - Flow: verify cancelled status",
+      "name": "20 - Flow: verify cancelled status",
       "request": {
         "method": "GET",
-        "url": "{{baseUrl}}/purchase-orders/{{poId}}"
+        "url": "{{baseUrl}}/sales-orders/{{soId}}"
       },
       "event": [
         {
@@ -604,18 +552,18 @@
           "script": {
             "exec": [
               "pm.test('Status 200', () => pm.response.to.have.status(200));",
-              "pm.test('PO detail matches JSON schema', () => pm.response.to.have.jsonSchema({\"type\": \"object\", \"required\": [\"po_id\", \"supplier_name\", \"created_by\", \"status\", \"lines\"], \"properties\": {\"po_id\": {\"type\": \"integer\"}, \"supplier_name\": {\"type\": \"string\"}, \"created_by\": {\"type\": \"string\"}, \"status\": {\"type\": \"string\"}, \"lines\": {\"type\": \"array\", \"items\": {\"type\": \"object\", \"required\": [\"item_name\", \"ordered_quantity\", \"received_quantity\", \"pending_quantity\", \"unit_cost\", \"line_total\", \"uom_symbol\"], \"properties\": {\"item_name\": {\"type\": \"string\"}, \"ordered_quantity\": {\"type\": \"number\"}, \"received_quantity\": {\"type\": \"number\"}, \"pending_quantity\": {\"type\": \"number\"}, \"unit_cost\": {\"type\": \"number\"}, \"line_total\": {\"type\": \"number\"}, \"uom_symbol\": {\"type\": \"string\"}}}}}}));",
-              "pm.test('PO is now Cancelled', () => pm.expect(pm.response.json().status).to.eql('Cancelled'));"
+              "pm.test('SO detail matches JSON schema', () => pm.response.to.have.jsonSchema({\"type\": \"object\", \"required\": [\"so_id\", \"customer_name\", \"created_by\", \"status\", \"payment_status\", \"lines\"], \"properties\": {\"so_id\": {\"type\": \"integer\"}, \"customer_name\": {\"type\": \"string\"}, \"created_by\": {\"type\": \"string\"}, \"status\": {\"type\": \"string\"}, \"payment_status\": {\"type\": \"string\"}, \"lines\": {\"type\": \"array\", \"items\": {\"type\": \"object\", \"required\": [\"item_name\", \"ordered_quantity\", \"shipped_quantity\", \"pending_quantity\", \"unit_price\", \"line_total\", \"uom_symbol\"], \"properties\": {\"item_name\": {\"type\": \"string\"}, \"ordered_quantity\": {\"type\": \"number\"}, \"shipped_quantity\": {\"type\": \"number\"}, \"pending_quantity\": {\"type\": \"number\"}, \"unit_price\": {\"type\": \"number\"}, \"line_total\": {\"type\": \"number\"}, \"uom_symbol\": {\"type\": \"string\"}}}}}}));",
+              "pm.test('SO is now Cancelled', () => pm.expect(pm.response.json().status).to.eql('Cancelled'));"
             ]
           }
         }
       ]
     },
     {
-      "name": "22 - Flow: reject second cancellation",
+      "name": "21 - Flow: reject advancing a cancelled order",
       "request": {
         "method": "POST",
-        "url": "{{baseUrl}}/purchase-orders/cancel",
+        "url": "{{baseUrl}}/sales-orders/advance",
         "header": [
           {
             "key": "Content-Type",
@@ -624,7 +572,7 @@
         ],
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"po_id\": \"{{poId}}\"\n}",
+          "raw": "{\n  \"so_id\": \"{{soId}}\"\n}",
           "options": {
             "raw": {
               "language": "json"
@@ -638,8 +586,42 @@
           "script": {
             "exec": [
               "pm.test('Status 400', () => pm.response.to.have.status(400));",
-              "pm.test('Error matches JSON schema', () => pm.response.to.have.jsonSchema({\"type\": \"object\", \"required\": [\"detail\"], \"properties\": {\"detail\": {}}}));",
-              "pm.test('Business rule is explained', () => pm.expect(pm.response.json().detail).to.include('Only Pending POs can be cancelled'));"
+              "pm.test('Error matches JSON schema', () => pm.response.to.have.jsonSchema({\"type\": \"object\", \"required\": [\"detail\"], \"properties\": {\"detail\": {\"type\": \"string\"}}}));",
+              "pm.test('Business rule is explained', () => pm.expect(pm.response.json().detail).to.include('cannot be advanced'));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "22 - Flow: reject second cancellation",
+      "request": {
+        "method": "POST",
+        "url": "{{baseUrl}}/sales-orders/cancel",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"so_id\": \"{{soId}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 400', () => pm.response.to.have.status(400));",
+              "pm.test('Error matches JSON schema', () => pm.response.to.have.jsonSchema({\"type\": \"object\", \"required\": [\"detail\"], \"properties\": {\"detail\": {\"type\": \"string\"}}}));",
+              "pm.test('Business rule is explained', () => pm.expect(pm.response.json().detail).to.include('cannot be cancelled'));"
             ]
           }
         }

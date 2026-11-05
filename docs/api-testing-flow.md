@@ -15,27 +15,42 @@ Cada solicitud valida tres aspectos:
 
 Además, a nivel de colección se valida tiempo de respuesta menor a 3 s y tipo `application/json`.
 
-## Flujo de negocio encadenado (compras)
+## Flujo de negocio encadenado (ventas)
+
+El usuario de pruebas del pipeline tiene rol **Logistics Staff**, por lo que el
+flujo cubre el ciclo de vida de una orden de venta, que es el proceso que ese rol
+opera en WLMS.
 
 | Paso | Solicitud | Dato que produce | Dato que consume |
 | --- | --- | --- | --- |
 | 04 | `POST /auth/login` | `accessToken` | credenciales (secretos de GitHub) |
 | 05 | `GET /auth/me` | `userId`, `currentRole` | `accessToken` |
-| 06 | `GET /items/` | `itemId`, `itemName` | `accessToken` |
-| 16 | `POST /suppliers/` | `supplierId`, `supplierName` | nombre único por ejecución |
-| 17 | `POST /purchase-orders/` | `poId` (estado `Pending`) | `supplierId`, `userId` |
-| 18 | `POST /purchase-orders/lines` | línea 5 × 10 | `poId`, `itemId` |
-| 19 | `GET /purchase-orders/{poId}` | verifica proveedor, ítem y total 50 | `poId`, `supplierName`, `itemName` |
-| 20 | `POST /purchase-orders/cancel` | estado `Cancelled` | `poId` |
-| 21 | `GET /purchase-orders/{poId}` | verifica `Cancelled` | `poId` |
-| 22 | `POST /purchase-orders/cancel` | rechazo 400 por regla de negocio | `poId` |
+| 09 | `GET /customers/` | `customerId`, `customerName` | `accessToken` |
+| 16 | `POST /sales-orders/` | `soId` (`Pending`, `Unpaid`) | `customerId`, `userId` |
+| 17 | `POST /sales-orders/advance` | estado `Processing` | `soId` |
+| 18 | `GET /sales-orders/{soId}` | verifica cliente y estado | `soId`, `customerName` |
+| 19 | `POST /sales-orders/cancel` | estado `Cancelled`, reservas liberadas | `soId` |
+| 20 | `GET /sales-orders/{soId}` | verifica `Cancelled` | `soId` |
+| 21 | `POST /sales-orders/advance` | rechazo 400: no se avanza una orden cancelada | `soId` |
+| 22 | `POST /sales-orders/cancel` | rechazo 400: no se cancela dos veces | `soId` |
 
-La orden de prueba termina cancelada, por lo que no genera recepciones ni altera
-el inventario. Cada ejecución deja un proveedor identificable con prefijo
-`QA Newman`.
+La orden no lleva líneas, por lo que no reserva ni altera inventario. Cada
+ejecución deja una orden de venta cancelada.
+
+## Hallazgo detectado durante el diseño del flujo
+
+`POST /sales-orders/lines` responde **HTTP 500** con cualquier cuerpo. El modelo
+`SOLineCreate` (`backend/schemas/sales_orders.py`) solo declara `so_id` y
+`created_by`, mientras que el router usa `line.item_id`, `line.quantity` y
+`line.unit_price`, lo que produce
+`AttributeError: 'SOLineCreate' object has no attribute 'item_id'`.
+Por eso el flujo no agrega líneas de venta. La corrección propuesta es declarar
+`item_id: int`, `quantity: float` y `unit_price: float` en el modelo y añadir una
+prueba unitaria del router.
 
 ## Validación local
 
 El 4 de noviembre de 2026 la colección se ejecutó contra el backend FastAPI y el
-esquema de `SQL/` cargado en PostgreSQL 16 local: 22 solicitudes, 111
-aserciones, 0 fallos.
+esquema de `SQL/` cargado en PostgreSQL 16 local, con un usuario
+Logistics Staff y con un usuario Administrator: en ambos casos 22 solicitudes,
+111 aserciones y 0 fallos.
