@@ -65,7 +65,7 @@ Fecha de revisión: 4 de noviembre de 2026.
 ### Completado
 
 - [x] Colección Postman versionada.
-- [x] 15 solicitudes incluidas.
+- [x] 22 solicitudes incluidas, con esquema JSON y flujo de negocio encadenado.
 - [x] Aserciones automáticas sobre respuestas.
 - [x] Variables para URL y credenciales sin secretos versionados.
 - [x] Ejecución Newman incorporada al pipeline.
@@ -76,7 +76,7 @@ Fecha de revisión: 4 de noviembre de 2026.
 
 - [ ] Identificar en el documento las solicitudes que forman el flujo completo.
 - [ ] Explicar cómo se transmite el token y los identificadores entre solicitudes.
-- [ ] Capturar el resumen Newman con las 15 solicitudes y sus aserciones.
+- [ ] Capturar el resumen Newman con las 22 solicitudes y sus aserciones.
 - [ ] Descargar el reporte Newman del pipeline para conservarlo como evidencia.
 
 ## E12 Análisis estático de código
