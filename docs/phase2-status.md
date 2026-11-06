@@ -13,7 +13,7 @@ Fecha de corte: 4 de noviembre de 2026.
 
 ## E10. Pruebas unitarias
 
-- 39 pruebas backend y 3 frontend aprobadas: 42 en total.
+- 60 pruebas backend y 3 frontend aprobadas: 63 en total.
 - Uso documentado de dobles en más de tres pruebas.
 - Ejecución automatizada dentro del pipeline.
 - Cobertura actual documentada en `docs/coverage-evidence.md`.
