@@ -44,9 +44,27 @@ ejecución deja una orden de venta cancelada.
 `created_by`, mientras que el router usa `line.item_id`, `line.quantity` y
 `line.unit_price`, lo que produce
 `AttributeError: 'SOLineCreate' object has no attribute 'item_id'`.
-Por eso el flujo no agrega líneas de venta. La corrección propuesta es declarar
-`item_id: int`, `quantity: float` y `unit_price: float` en el modelo y añadir una
-prueba unitaria del router.
+Por eso el flujo no agrega líneas de venta.
+
+**Estado: corregido.** El hallazgo se registró en la revisión del PR #15 y se
+corrigió en el PR #16:
+
+- `SOLineCreate` declara `so_id`, `item_id`, `quantity` y `unit_price`.
+  `quantity` y `unit_price` son `Decimal` con máximo 2 decimales, igual que
+  `NUMERIC(12,2)` en la base; `quantity` debe ser > 0 y `unit_price` >= 0.
+- La regla `unit_price >= 0` también quedó en la base: `SQL/Tables.sql` la
+  incluye para bases nuevas y
+  `SQL/migrations/2026-11-06_sales_order_lines_unit_price_check.sql` la agrega
+  en bases existentes.
+- Con datos válidos el endpoint responde 200 y reserva stock; con campos
+  faltantes, valores fuera de rango o más de 2 decimales responde 422 sin
+  llegar a la base.
+- `tests/backend/test_sales_order_lines.py` prueba el modelo, la función y el
+  endpoint por HTTP con `TestClient`.
+
+Pendiente: agregar la línea de venta al flujo de Newman. En CI, Newman prueba
+contra el backend publicado en Azure, así que esos pasos se integran cuando la
+corrección esté desplegada; antes fallarían con el 500 del código anterior.
 
 ## Validación local
 
