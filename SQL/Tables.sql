@@ -159,7 +159,7 @@ CREATE TABLE sales_order_lines (
     ordered_quantity  NUMERIC(12, 2)  NOT NULL CHECK (ordered_quantity > 0),
     shipped_quantity  NUMERIC(12, 2)  NOT NULL DEFAULT 0 CHECK (shipped_quantity >= 0),
     pending_quantity  NUMERIC(12, 2)  GENERATED ALWAYS AS (ordered_quantity - shipped_quantity) STORED,
-    unit_price        NUMERIC(12, 2)  NOT NULL DEFAULT 0,
+    unit_price        NUMERIC(12, 2)  NOT NULL DEFAULT 0 CHECK (unit_price >= 0),
     line_total        NUMERIC(14, 2)  GENERATED ALWAYS AS (ordered_quantity * unit_price) STORED,
     UNIQUE (so_id, item_id)
 );
