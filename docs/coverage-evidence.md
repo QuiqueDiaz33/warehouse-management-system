@@ -7,9 +7,9 @@ pytest 8.4.2, pytest-cov 7.0.0 y Vitest 5.1.0.
 
 | Componente | Archivos de prueba | Pruebas aprobadas | Cobertura de líneas |
 | --- | ---: | ---: | ---: |
-| Backend | 5 | 39 | 54 % |
+| Backend | 6 | 50 | 55 % |
 | Frontend | 1 | 3 | 1.54 % global |
-| Total | 6 | 42 | No se combina porque las herramientas usan universos distintos |
+| Total | 7 | 53 | No se combina porque las herramientas usan universos distintos |
 
 El módulo `backend/auth.py`, el router `backend/routers/auth.py` y el router
 `backend/routers/items.py` alcanzaron 100 % de cobertura. `backend/main.py`
@@ -53,7 +53,7 @@ valor es la cobertura real del código en la línea base, no una suposición.
 | Inventario | `backend/routers/stock.py` | 0 % | 100 % | +100 pp |
 | Recepción | `backend/routers/grns.py` | 0 % | 36 % | +36 pp |
 | Compras | `backend/routers/purchase_orders.py` | 0 % | 35 % | +35 pp |
-| Ventas/reserva | `backend/routers/sales_orders.py` | 0 % | 32 % | +32 pp |
+| Ventas/reserva | `backend/routers/sales_orders.py` | 0 % | 44 % | +44 pp |
 | Despacho | `backend/routers/delivery_challans.py` | 0 % | 32 % | +32 pp |
 
 Todos los módulos críticos superan el incremento mínimo de 20 puntos

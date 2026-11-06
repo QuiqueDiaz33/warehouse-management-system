@@ -44,9 +44,13 @@ ejecución deja una orden de venta cancelada.
 `created_by`, mientras que el router usa `line.item_id`, `line.quantity` y
 `line.unit_price`, lo que produce
 `AttributeError: 'SOLineCreate' object has no attribute 'item_id'`.
-Por eso el flujo no agrega líneas de venta. La corrección propuesta es declarar
-`item_id: int`, `quantity: float` y `unit_price: float` en el modelo y añadir una
-prueba unitaria del router.
+Por eso el flujo no agrega líneas de venta.
+
+**Estado: corregido.** El hallazgo se registró en la revisión del PR #15 y se
+corrigió en un PR separado: `SOLineCreate` ahora declara `so_id`, `item_id`,
+`quantity` (> 0) y `unit_price` (>= 0). Con datos válidos el endpoint responde
+200 y reserva stock; con campos faltantes o inválidos responde 422 en lugar
+de 500. Las pruebas están en `tests/backend/test_sales_order_lines.py`.
 
 ## Validación local
 
