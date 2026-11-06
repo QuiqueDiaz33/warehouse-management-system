@@ -30,9 +30,10 @@ Fecha de corte: 4 de noviembre de 2026.
 ## E12. Análisis estático
 
 - SonarCloud integrado y Quality Gate aprobado en el pipeline #24.
-- Pendiente: tabla verificable del estado inicial y final con bugs,
-  vulnerabilidades, code smells, duplicación y deuda técnica.
-- No se registran valores inventados si el dashboard inicial no fue capturado.
+- Estado inicial (d8dedde) y actual (fe04865) documentados en
+  [static-analysis.md](static-analysis.md), con datos de la API de SonarCloud.
+- Sin hallazgos Blocker ni Critical. Los dos Minor de CORS en backend/main.py
+  se corrigieron; los valores finales se registran tras el análisis de main.
 
 ## E13. Integración y despliegue continuo
 
