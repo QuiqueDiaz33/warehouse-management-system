@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "wlms-phase2-api-tests",
     "name": "WLMS Phase 2 API Tests",
-    "description": "15 solicitudes automatizadas. El flujo inicia sesión, conserva el JWT y consulta los recursos principales sin modificar datos.",
+    "description": "22 solicitudes automatizadas con aserciones de estado, esquema JSON y contenido. Incluye un flujo de negocio encadenado de ventas: login -> usuario -> cliente -> crear orden de venta -> avanzar a Processing -> verificar -> cancelar -> verificar Cancelled -> rechazar avance y segunda cancelación. La orden no lleva líneas, por lo que no reserva ni altera inventario.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "event": [
@@ -17,170 +17,615 @@
     }
   ],
   "variable": [
-    { "key": "baseUrl", "value": "http://127.0.0.1:8000" },
-    { "key": "username", "value": "" },
-    { "key": "password", "value": "" },
-    { "key": "accessToken", "value": "" },
-    { "key": "currentRole", "value": "" }
+    {
+      "key": "baseUrl",
+      "value": "http://127.0.0.1:8000"
+    },
+    {
+      "key": "username",
+      "value": ""
+    },
+    {
+      "key": "password",
+      "value": ""
+    },
+    {
+      "key": "accessToken",
+      "value": ""
+    },
+    {
+      "key": "currentRole",
+      "value": ""
+    },
+    {
+      "key": "userId",
+      "value": ""
+    },
+    {
+      "key": "customerId",
+      "value": ""
+    },
+    {
+      "key": "customerName",
+      "value": ""
+    },
+    {
+      "key": "soId",
+      "value": ""
+    }
   ],
   "auth": {
     "type": "bearer",
-    "bearer": [{ "key": "token", "value": "{{accessToken}}", "type": "string" }]
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{accessToken}}",
+        "type": "string"
+      }
+    ]
   },
   "item": [
     {
       "name": "01 - Health check",
-      "auth": { "type": "noauth" },
-      "request": { "method": "GET", "url": "{{baseUrl}}/" },
-      "event": [{ "listen": "test", "script": { "exec": [
-        "pm.test('Status 200', () => pm.response.to.have.status(200));",
-        "const body = pm.response.json();",
-        "pm.test('Backend identity is present', () => pm.expect(body).to.have.property('message', 'WLMS backend'));"
-      ] } }]
+      "auth": {
+        "type": "noauth"
+      },
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 200', () => pm.response.to.have.status(200));",
+              "const body = pm.response.json();",
+              "pm.test('Backend identity is present', () => pm.expect(body).to.have.property('message', 'WLMS backend'));",
+              "pm.test('Response matches JSON schema', () => pm.response.to.have.jsonSchema({\"type\": \"object\", \"required\": [\"message\"], \"properties\": {\"message\": {\"type\": \"string\"}}}));"
+            ]
+          }
+        }
+      ]
     },
     {
       "name": "02 - Reject invalid login",
-      "auth": { "type": "noauth" },
+      "auth": {
+        "type": "noauth"
+      },
       "request": {
         "method": "POST",
-        "header": [{ "key": "Content-Type", "value": "application/x-www-form-urlencoded" }],
-        "body": { "mode": "urlencoded", "urlencoded": [
-          { "key": "username", "value": "__invalid_phase2_user__" },
-          { "key": "password", "value": "invalid-password" }
-        ] },
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/x-www-form-urlencoded"
+          }
+        ],
+        "body": {
+          "mode": "urlencoded",
+          "urlencoded": [
+            {
+              "key": "username",
+              "value": "__invalid_phase2_user__"
+            },
+            {
+              "key": "password",
+              "value": "invalid-password"
+            }
+          ]
+        },
         "url": "{{baseUrl}}/auth/login"
       },
-      "event": [{ "listen": "test", "script": { "exec": [
-        "pm.test('Status 401', () => pm.response.to.have.status(401));",
-        "pm.test('Error detail is returned', () => pm.expect(pm.response.json()).to.have.property('detail'));"
-      ] } }]
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 401', () => pm.response.to.have.status(401));",
+              "pm.test('Error detail is returned', () => pm.expect(pm.response.json()).to.have.property('detail'));",
+              "pm.test('Response matches JSON schema', () => pm.response.to.have.jsonSchema({\"type\": \"object\", \"required\": [\"detail\"], \"properties\": {\"detail\": {}}}));"
+            ]
+          }
+        }
+      ]
     },
     {
       "name": "03 - Reject unauthenticated profile",
-      "auth": { "type": "noauth" },
-      "request": { "method": "GET", "url": "{{baseUrl}}/auth/me" },
-      "event": [{ "listen": "test", "script": { "exec": [
-        "pm.test('Status 401', () => pm.response.to.have.status(401));",
-        "pm.test('Authentication error has detail', () => pm.expect(pm.response.json()).to.have.property('detail'));"
-      ] } }]
+      "auth": {
+        "type": "noauth"
+      },
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/auth/me"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 401', () => pm.response.to.have.status(401));",
+              "pm.test('Authentication error has detail', () => pm.expect(pm.response.json()).to.have.property('detail'));",
+              "pm.test('Response matches JSON schema', () => pm.response.to.have.jsonSchema({\"type\": \"object\", \"required\": [\"detail\"], \"properties\": {\"detail\": {}}}));"
+            ]
+          }
+        }
+      ]
     },
     {
       "name": "04 - Login and store token",
-      "auth": { "type": "noauth" },
+      "auth": {
+        "type": "noauth"
+      },
       "request": {
         "method": "POST",
-        "header": [{ "key": "Content-Type", "value": "application/x-www-form-urlencoded" }],
-        "body": { "mode": "urlencoded", "urlencoded": [
-          { "key": "username", "value": "{{username}}" },
-          { "key": "password", "value": "{{password}}" }
-        ] },
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/x-www-form-urlencoded"
+          }
+        ],
+        "body": {
+          "mode": "urlencoded",
+          "urlencoded": [
+            {
+              "key": "username",
+              "value": "{{username}}"
+            },
+            {
+              "key": "password",
+              "value": "{{password}}"
+            }
+          ]
+        },
         "url": "{{baseUrl}}/auth/login"
       },
-      "event": [{ "listen": "test", "script": { "exec": [
-        "pm.test('Status 200', () => pm.response.to.have.status(200));",
-        "const body = pm.response.json();",
-        "pm.test('Token schema is valid', () => { pm.expect(body).to.have.keys('access_token', 'token_type'); pm.expect(body.access_token).to.be.a('string').and.not.empty; pm.expect(body.token_type).to.eql('bearer'); });",
-        "pm.collectionVariables.set('accessToken', body.access_token);"
-      ] } }]
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 200', () => pm.response.to.have.status(200));",
+              "const body = pm.response.json();",
+              "pm.test('Token schema is valid', () => { pm.expect(body).to.have.keys('access_token', 'token_type'); pm.expect(body.access_token).to.be.a('string').and.not.empty; pm.expect(body.token_type).to.eql('bearer'); });",
+              "pm.collectionVariables.set('accessToken', body.access_token);"
+            ]
+          }
+        }
+      ]
     },
     {
       "name": "05 - Current user",
-      "request": { "method": "GET", "url": "{{baseUrl}}/auth/me" },
-      "event": [{ "listen": "test", "script": { "exec": [
-        "pm.test('Status 200', () => pm.response.to.have.status(200));",
-        "const body = pm.response.json();",
-        "pm.test('User schema is valid', () => { pm.expect(body.user_id).to.be.a('number'); pm.expect(body.username).to.be.a('string'); pm.expect(body.role).to.be.a('string'); });",
-        "pm.collectionVariables.set('currentRole', body.role);"
-      ] } }]
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/auth/me"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 200', () => pm.response.to.have.status(200));",
+              "const body = pm.response.json();",
+              "pm.test('User schema is valid', () => { pm.expect(body.user_id).to.be.a('number'); pm.expect(body.username).to.be.a('string'); pm.expect(body.role).to.be.a('string'); });",
+              "pm.collectionVariables.set('currentRole', body.role);",
+              "pm.collectionVariables.set('userId', body.user_id);"
+            ]
+          }
+        }
+      ]
     },
     {
       "name": "06 - Items",
-      "request": { "method": "GET", "url": "{{baseUrl}}/items/" },
-      "event": [{ "listen": "test", "script": { "exec": [
-        "pm.test('Status 200', () => pm.response.to.have.status(200));",
-        "const body = pm.response.json();",
-        "pm.test('Items are an array', () => pm.expect(body).to.be.an('array'));",
-        "pm.test('Item schema is valid when present', () => { if (body.length) { pm.expect(body[0]).to.include.keys('item_id','item_name','reorder_level','uom_symbol','is_active'); } });"
-      ] } }]
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/items/"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 200', () => pm.response.to.have.status(200));",
+              "const body = pm.response.json();",
+              "pm.test('Items are an array', () => pm.expect(body).to.be.an('array'));",
+              "pm.test('Item schema is valid when present', () => { if (body.length) { pm.expect(body[0]).to.include.keys('item_id','item_name','reorder_level','uom_symbol','is_active'); } });"
+            ]
+          }
+        }
+      ]
     },
     {
       "name": "07 - Units of measure",
-      "request": { "method": "GET", "url": "{{baseUrl}}/uoms/" },
-      "event": [{ "listen": "test", "script": { "exec": [
-        "pm.test('Status 200', () => pm.response.to.have.status(200));",
-        "pm.test('UOM response is an array', () => pm.expect(pm.response.json()).to.be.an('array'));"
-      ] } }]
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/uoms/"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 200', () => pm.response.to.have.status(200));",
+              "pm.test('UOM response is an array', () => pm.expect(pm.response.json()).to.be.an('array'));",
+              "pm.test('Response matches JSON schema', () => pm.response.to.have.jsonSchema({\"type\": \"array\", \"items\": {\"type\": \"object\", \"required\": [\"uom_id\", \"uom_name\", \"uom_symbol\"], \"properties\": {\"uom_id\": {\"type\": \"integer\"}, \"uom_name\": {\"type\": \"string\"}, \"uom_symbol\": {\"type\": \"string\"}}}}));"
+            ]
+          }
+        }
+      ]
     },
     {
       "name": "08 - Suppliers",
-      "request": { "method": "GET", "url": "{{baseUrl}}/suppliers/" },
-      "event": [{ "listen": "test", "script": { "exec": [
-        "const allowed = ['Administrator', 'Warehouse Staff'].includes(pm.collectionVariables.get('currentRole'));",
-        "pm.test('Status matches warehouse authorization', () => pm.response.to.have.status(allowed ? 200 : 403));",
-        "pm.test('Suppliers content matches authorization', () => { const body = pm.response.json(); allowed ? pm.expect(body).to.be.an('array') : pm.expect(body).to.have.property('detail'); });"
-      ] } }]
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/suppliers/"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "const allowed = ['Administrator', 'Warehouse Staff'].includes(pm.collectionVariables.get('currentRole'));",
+              "pm.test('Status matches warehouse authorization', () => pm.response.to.have.status(allowed ? 200 : 403));",
+              "pm.test('Suppliers content matches authorization', () => { const body = pm.response.json(); allowed ? pm.expect(body).to.be.an('array') : pm.expect(body).to.have.property('detail'); });",
+              "pm.test('Response matches JSON schema', () => { if (pm.response.code === 200) { pm.response.to.have.jsonSchema({\"type\": \"array\", \"items\": {\"type\": \"object\", \"required\": [\"supplier_id\", \"supplier_name\", \"email\", \"phone\", \"address\", \"is_active\"], \"properties\": {\"supplier_id\": {\"type\": \"integer\"}, \"supplier_name\": {\"type\": \"string\"}, \"email\": {\"type\": [\"string\", \"null\"]}, \"phone\": {\"type\": [\"string\", \"null\"]}, \"address\": {\"type\": [\"string\", \"null\"]}, \"is_active\": {\"type\": \"boolean\"}}}}); } else { pm.response.to.have.jsonSchema({\"type\": \"object\", \"required\": [\"detail\"], \"properties\": {\"detail\": {}}}); } });"
+            ]
+          }
+        }
+      ]
     },
     {
       "name": "09 - Customers",
-      "request": { "method": "GET", "url": "{{baseUrl}}/customers/" },
-      "event": [{ "listen": "test", "script": { "exec": [
-        "const allowed = ['Administrator', 'Logistics Staff'].includes(pm.collectionVariables.get('currentRole'));",
-        "pm.test('Status matches logistics authorization', () => pm.response.to.have.status(allowed ? 200 : 403));",
-        "pm.test('Customers content matches authorization', () => { const body = pm.response.json(); allowed ? pm.expect(body).to.be.an('array') : pm.expect(body).to.have.property('detail'); });"
-      ] } }]
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/customers/"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "const allowed = ['Administrator', 'Logistics Staff'].includes(pm.collectionVariables.get('currentRole'));",
+              "pm.test('Status matches logistics authorization', () => pm.response.to.have.status(allowed ? 200 : 403));",
+              "pm.test('Customers content matches authorization', () => { const body = pm.response.json(); allowed ? pm.expect(body).to.be.an('array') : pm.expect(body).to.have.property('detail'); });",
+              "pm.test('Response matches JSON schema', () => { if (pm.response.code === 200) { pm.response.to.have.jsonSchema({\"type\": \"array\", \"items\": {\"type\": \"object\", \"required\": [\"customer_id\", \"customer_name\", \"phone\", \"address\"], \"properties\": {\"customer_id\": {\"type\": \"integer\"}, \"customer_name\": {\"type\": \"string\"}, \"phone\": {\"type\": [\"string\", \"null\"]}, \"address\": {\"type\": [\"string\", \"null\"]}}}}); } else { pm.response.to.have.jsonSchema({\"type\": \"object\", \"required\": [\"detail\"], \"properties\": {\"detail\": {}}}); } });",
+              "if (pm.response.code === 200 && pm.response.json().length) { const c0 = pm.response.json()[0]; pm.collectionVariables.set('customerId', c0.customer_id); pm.collectionVariables.set('customerName', c0.customer_name); }"
+            ]
+          }
+        }
+      ]
     },
     {
       "name": "10 - Users",
-      "request": { "method": "GET", "url": "{{baseUrl}}/users/" },
-      "event": [{ "listen": "test", "script": { "exec": [
-        "const allowed = pm.collectionVariables.get('currentRole') === 'Administrator';",
-        "pm.test('Status matches administrator authorization', () => pm.response.to.have.status(allowed ? 200 : 403));",
-        "pm.test('Users content matches authorization', () => { const body = pm.response.json(); allowed ? pm.expect(body).to.be.an('array') : pm.expect(body).to.have.property('detail'); });"
-      ] } }]
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/users/"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "const allowed = pm.collectionVariables.get('currentRole') === 'Administrator';",
+              "pm.test('Status matches administrator authorization', () => pm.response.to.have.status(allowed ? 200 : 403));",
+              "pm.test('Users content matches authorization', () => { const body = pm.response.json(); allowed ? pm.expect(body).to.be.an('array') : pm.expect(body).to.have.property('detail'); });",
+              "pm.test('Response matches JSON schema', () => { if (pm.response.code === 200) { pm.response.to.have.jsonSchema({\"type\": \"array\", \"items\": {\"type\": \"object\", \"required\": [\"user_id\", \"username\", \"role_name\", \"is_active\"], \"properties\": {\"user_id\": {\"type\": \"integer\"}, \"username\": {\"type\": \"string\"}, \"role_name\": {\"type\": \"string\"}, \"is_active\": {\"type\": \"boolean\"}}}}); } else { pm.response.to.have.jsonSchema({\"type\": \"object\", \"required\": [\"detail\"], \"properties\": {\"detail\": {}}}); } });"
+            ]
+          }
+        }
+      ]
     },
     {
       "name": "11 - Stock",
-      "request": { "method": "GET", "url": "{{baseUrl}}/stock/" },
-      "event": [{ "listen": "test", "script": { "exec": [
-        "pm.test('Status 200', () => pm.response.to.have.status(200));",
-        "pm.test('Stock response is an array', () => pm.expect(pm.response.json()).to.be.an('array'));"
-      ] } }]
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/stock/"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 200', () => pm.response.to.have.status(200));",
+              "pm.test('Stock response is an array', () => pm.expect(pm.response.json()).to.be.an('array'));",
+              "pm.test('Response matches JSON schema', () => pm.response.to.have.jsonSchema({\"type\": \"array\", \"items\": {\"type\": \"object\", \"required\": [\"item_id\", \"item_name\", \"uom_symbol\", \"available_quantity\", \"reserved_quantity\", \"total_on_hand\", \"reorder_level\", \"is_low_stock\"], \"properties\": {\"item_id\": {\"type\": \"integer\"}, \"item_name\": {\"type\": \"string\"}, \"uom_symbol\": {\"type\": \"string\"}, \"available_quantity\": {\"type\": \"number\"}, \"reserved_quantity\": {\"type\": \"number\"}, \"total_on_hand\": {\"type\": \"number\"}, \"reorder_level\": {\"type\": \"number\"}, \"is_low_stock\": {\"type\": \"boolean\"}}}}));"
+            ]
+          }
+        }
+      ]
     },
     {
       "name": "12 - Purchase orders",
-      "request": { "method": "GET", "url": "{{baseUrl}}/purchase-orders/" },
-      "event": [{ "listen": "test", "script": { "exec": [
-        "const allowed = ['Administrator', 'Warehouse Staff'].includes(pm.collectionVariables.get('currentRole'));",
-        "pm.test('Status matches warehouse authorization', () => pm.response.to.have.status(allowed ? 200 : 403));",
-        "pm.test('Purchase orders content matches authorization', () => { const body = pm.response.json(); allowed ? pm.expect(body).to.be.an('array') : pm.expect(body).to.have.property('detail'); });"
-      ] } }]
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/purchase-orders/"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "const allowed = ['Administrator', 'Warehouse Staff'].includes(pm.collectionVariables.get('currentRole'));",
+              "pm.test('Status matches warehouse authorization', () => pm.response.to.have.status(allowed ? 200 : 403));",
+              "pm.test('Purchase orders content matches authorization', () => { const body = pm.response.json(); allowed ? pm.expect(body).to.be.an('array') : pm.expect(body).to.have.property('detail'); });",
+              "pm.test('Response matches JSON schema', () => { if (pm.response.code === 200) { pm.response.to.have.jsonSchema({\"type\": \"array\", \"items\": {\"type\": \"object\", \"required\": [\"po_id\", \"supplier_name\", \"created_by\", \"status\", \"created_at\"], \"properties\": {\"po_id\": {\"type\": \"integer\"}, \"supplier_name\": {\"type\": \"string\"}, \"created_by\": {\"type\": \"string\"}, \"status\": {\"type\": \"string\"}, \"created_at\": {\"type\": \"string\"}}}}); } else { pm.response.to.have.jsonSchema({\"type\": \"object\", \"required\": [\"detail\"], \"properties\": {\"detail\": {}}}); } });"
+            ]
+          }
+        }
+      ]
     },
     {
       "name": "13 - Goods receipts",
-      "request": { "method": "GET", "url": "{{baseUrl}}/grns/" },
-      "event": [{ "listen": "test", "script": { "exec": [
-        "const allowed = ['Administrator', 'Warehouse Staff'].includes(pm.collectionVariables.get('currentRole'));",
-        "pm.test('Status matches warehouse authorization', () => pm.response.to.have.status(allowed ? 200 : 403));",
-        "pm.test('GRN content matches authorization', () => { const body = pm.response.json(); allowed ? pm.expect(body).to.be.an('array') : pm.expect(body).to.have.property('detail'); });"
-      ] } }]
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/grns/"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "const allowed = ['Administrator', 'Warehouse Staff'].includes(pm.collectionVariables.get('currentRole'));",
+              "pm.test('Status matches warehouse authorization', () => pm.response.to.have.status(allowed ? 200 : 403));",
+              "pm.test('GRN content matches authorization', () => { const body = pm.response.json(); allowed ? pm.expect(body).to.be.an('array') : pm.expect(body).to.have.property('detail'); });",
+              "pm.test('Response matches JSON schema', () => { if (pm.response.code === 200) { pm.response.to.have.jsonSchema({\"type\": \"array\", \"items\": {\"type\": \"object\", \"required\": [\"grn_id\", \"po_id\", \"received_by\", \"status\", \"received_at\"], \"properties\": {\"grn_id\": {\"type\": \"integer\"}, \"po_id\": {\"type\": \"integer\"}, \"received_by\": {}, \"status\": {\"type\": \"string\"}, \"received_at\": {\"type\": \"string\"}}}}); } else { pm.response.to.have.jsonSchema({\"type\": \"object\", \"required\": [\"detail\"], \"properties\": {\"detail\": {}}}); } });"
+            ]
+          }
+        }
+      ]
     },
     {
       "name": "14 - Sales orders",
-      "request": { "method": "GET", "url": "{{baseUrl}}/sales-orders/" },
-      "event": [{ "listen": "test", "script": { "exec": [
-        "const allowed = ['Administrator', 'Logistics Staff'].includes(pm.collectionVariables.get('currentRole'));",
-        "pm.test('Status matches logistics authorization', () => pm.response.to.have.status(allowed ? 200 : 403));",
-        "pm.test('Sales orders content matches authorization', () => { const body = pm.response.json(); allowed ? pm.expect(body).to.be.an('array') : pm.expect(body).to.have.property('detail'); });"
-      ] } }]
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/sales-orders/"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "const allowed = ['Administrator', 'Logistics Staff'].includes(pm.collectionVariables.get('currentRole'));",
+              "pm.test('Status matches logistics authorization', () => pm.response.to.have.status(allowed ? 200 : 403));",
+              "pm.test('Sales orders content matches authorization', () => { const body = pm.response.json(); allowed ? pm.expect(body).to.be.an('array') : pm.expect(body).to.have.property('detail'); });",
+              "pm.test('Response matches JSON schema', () => { if (pm.response.code === 200) { pm.response.to.have.jsonSchema({\"type\": \"array\", \"items\": {\"type\": \"object\", \"required\": [\"so_id\", \"customer_name\", \"created_by\", \"status\", \"payment_status\", \"created_at\"], \"properties\": {\"so_id\": {\"type\": \"integer\"}, \"customer_name\": {\"type\": \"string\"}, \"created_by\": {}, \"status\": {\"type\": \"string\"}, \"payment_status\": {}, \"created_at\": {\"type\": \"string\"}}}}); } else { pm.response.to.have.jsonSchema({\"type\": \"object\", \"required\": [\"detail\"], \"properties\": {\"detail\": {}}}); } });"
+            ]
+          }
+        }
+      ]
     },
     {
       "name": "15 - Delivery challans",
-      "request": { "method": "GET", "url": "{{baseUrl}}/delivery-challans/" },
-      "event": [{ "listen": "test", "script": { "exec": [
-        "const allowed = ['Administrator', 'Logistics Staff'].includes(pm.collectionVariables.get('currentRole'));",
-        "pm.test('Status matches logistics authorization', () => pm.response.to.have.status(allowed ? 200 : 403));",
-        "pm.test('Delivery challans content matches authorization', () => { const body = pm.response.json(); allowed ? pm.expect(body).to.be.an('array') : pm.expect(body).to.have.property('detail'); });"
-      ] } }]
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/delivery-challans/"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "const allowed = ['Administrator', 'Logistics Staff'].includes(pm.collectionVariables.get('currentRole'));",
+              "pm.test('Status matches logistics authorization', () => pm.response.to.have.status(allowed ? 200 : 403));",
+              "pm.test('Delivery challans content matches authorization', () => { const body = pm.response.json(); allowed ? pm.expect(body).to.be.an('array') : pm.expect(body).to.have.property('detail'); });",
+              "pm.test('Response matches JSON schema', () => { if (pm.response.code === 200) { pm.response.to.have.jsonSchema({\"type\": \"array\", \"items\": {\"type\": \"object\", \"required\": [\"dc_id\", \"so_id\", \"customer_name\", \"created_by\", \"driver_name\", \"vehicle_number\", \"status\", \"created_at\"], \"properties\": {\"dc_id\": {\"type\": \"integer\"}, \"so_id\": {\"type\": \"integer\"}, \"customer_name\": {\"type\": \"string\"}, \"created_by\": {}, \"driver_name\": {\"type\": [\"string\", \"null\"]}, \"vehicle_number\": {\"type\": [\"string\", \"null\"]}, \"status\": {\"type\": \"string\"}, \"created_at\": {\"type\": \"string\"}}}}); } else { pm.response.to.have.jsonSchema({\"type\": \"object\", \"required\": [\"detail\"], \"properties\": {\"detail\": {}}}); } });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "16 - Flow: create sales order",
+      "request": {
+        "method": "POST",
+        "url": "{{baseUrl}}/sales-orders/",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"customer_id\": \"{{customerId}}\",\n  \"created_by\": \"{{userId}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Flow preconditions: logistics role and an existing customer', () => { pm.expect(['Administrator','Logistics Staff']).to.include(pm.collectionVariables.get('currentRole')); pm.expect(pm.collectionVariables.get('customerId')).to.not.be.oneOf([undefined, null, '']); });",
+              "pm.test('Status 200', () => pm.response.to.have.status(200));",
+              "const body = pm.response.json();",
+              "pm.test('Sales order matches JSON schema', () => pm.response.to.have.jsonSchema({\"type\": \"object\", \"required\": [\"so_id\", \"customer_id\", \"created_by\", \"status\", \"payment_status\"], \"properties\": {\"so_id\": {\"type\": \"integer\"}, \"customer_id\": {\"type\": \"integer\"}, \"created_by\": {\"type\": \"integer\"}, \"status\": {\"type\": \"string\"}, \"payment_status\": {\"type\": \"string\"}}}));",
+              "pm.test('SO is linked to the customer and current user', () => { pm.expect(body.customer_id).to.eql(Number(pm.collectionVariables.get('customerId'))); pm.expect(body.created_by).to.eql(Number(pm.collectionVariables.get('userId'))); });",
+              "pm.test('New SO starts Pending and Unpaid', () => { pm.expect(body.status).to.eql('Pending'); pm.expect(body.payment_status).to.eql('Unpaid'); });",
+              "pm.collectionVariables.set('soId', body.so_id);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "17 - Flow: advance sales order to Processing",
+      "request": {
+        "method": "POST",
+        "url": "{{baseUrl}}/sales-orders/advance",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"so_id\": \"{{soId}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 200', () => pm.response.to.have.status(200));",
+              "pm.test('Response matches JSON schema', () => pm.response.to.have.jsonSchema({\"type\": \"object\", \"required\": [\"message\"], \"properties\": {\"message\": {\"type\": \"string\"}}}));",
+              "pm.test('Advance is confirmed for this SO', () => pm.expect(pm.response.json().message).to.include(String(pm.collectionVariables.get('soId'))));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "18 - Flow: verify sales order detail",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/sales-orders/{{soId}}"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 200', () => pm.response.to.have.status(200));",
+              "const body = pm.response.json();",
+              "pm.test('SO detail matches JSON schema', () => pm.response.to.have.jsonSchema({\"type\": \"object\", \"required\": [\"so_id\", \"customer_name\", \"created_by\", \"status\", \"payment_status\", \"lines\"], \"properties\": {\"so_id\": {\"type\": \"integer\"}, \"customer_name\": {\"type\": \"string\"}, \"created_by\": {\"type\": \"string\"}, \"status\": {\"type\": \"string\"}, \"payment_status\": {\"type\": \"string\"}, \"lines\": {\"type\": \"array\", \"items\": {\"type\": \"object\", \"required\": [\"item_name\", \"ordered_quantity\", \"shipped_quantity\", \"pending_quantity\", \"unit_price\", \"line_total\", \"uom_symbol\"], \"properties\": {\"item_name\": {\"type\": \"string\"}, \"ordered_quantity\": {\"type\": \"number\"}, \"shipped_quantity\": {\"type\": \"number\"}, \"pending_quantity\": {\"type\": \"number\"}, \"unit_price\": {\"type\": \"number\"}, \"line_total\": {\"type\": \"number\"}, \"uom_symbol\": {\"type\": \"string\"}}}}}}));",
+              "pm.test('Detail reflects chained data', () => { pm.expect(body.so_id).to.eql(Number(pm.collectionVariables.get('soId'))); pm.expect(body.customer_name).to.eql(pm.collectionVariables.get('customerName')); });",
+              "pm.test('Status advanced Pending -> Processing', () => pm.expect(body.status).to.eql('Processing'));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "19 - Flow: cancel sales order",
+      "request": {
+        "method": "POST",
+        "url": "{{baseUrl}}/sales-orders/cancel",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"so_id\": \"{{soId}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 200', () => pm.response.to.have.status(200));",
+              "pm.test('Response matches JSON schema', () => pm.response.to.have.jsonSchema({\"type\": \"object\", \"required\": [\"message\"], \"properties\": {\"message\": {\"type\": \"string\"}}}));",
+              "pm.test('Cancellation releases reservations', () => { const m = pm.response.json().message; pm.expect(m).to.include(String(pm.collectionVariables.get('soId'))); pm.expect(m).to.include('Reserved stock released'); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "20 - Flow: verify cancelled status",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/sales-orders/{{soId}}"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 200', () => pm.response.to.have.status(200));",
+              "pm.test('SO detail matches JSON schema', () => pm.response.to.have.jsonSchema({\"type\": \"object\", \"required\": [\"so_id\", \"customer_name\", \"created_by\", \"status\", \"payment_status\", \"lines\"], \"properties\": {\"so_id\": {\"type\": \"integer\"}, \"customer_name\": {\"type\": \"string\"}, \"created_by\": {\"type\": \"string\"}, \"status\": {\"type\": \"string\"}, \"payment_status\": {\"type\": \"string\"}, \"lines\": {\"type\": \"array\", \"items\": {\"type\": \"object\", \"required\": [\"item_name\", \"ordered_quantity\", \"shipped_quantity\", \"pending_quantity\", \"unit_price\", \"line_total\", \"uom_symbol\"], \"properties\": {\"item_name\": {\"type\": \"string\"}, \"ordered_quantity\": {\"type\": \"number\"}, \"shipped_quantity\": {\"type\": \"number\"}, \"pending_quantity\": {\"type\": \"number\"}, \"unit_price\": {\"type\": \"number\"}, \"line_total\": {\"type\": \"number\"}, \"uom_symbol\": {\"type\": \"string\"}}}}}}));",
+              "pm.test('SO is now Cancelled', () => pm.expect(pm.response.json().status).to.eql('Cancelled'));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "21 - Flow: reject advancing a cancelled order",
+      "request": {
+        "method": "POST",
+        "url": "{{baseUrl}}/sales-orders/advance",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"so_id\": \"{{soId}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 400', () => pm.response.to.have.status(400));",
+              "pm.test('Error matches JSON schema', () => pm.response.to.have.jsonSchema({\"type\": \"object\", \"required\": [\"detail\"], \"properties\": {\"detail\": {\"type\": \"string\"}}}));",
+              "pm.test('Business rule is explained', () => pm.expect(pm.response.json().detail).to.include('cannot be advanced'));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "22 - Flow: reject second cancellation",
+      "request": {
+        "method": "POST",
+        "url": "{{baseUrl}}/sales-orders/cancel",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"so_id\": \"{{soId}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 400', () => pm.response.to.have.status(400));",
+              "pm.test('Error matches JSON schema', () => pm.response.to.have.jsonSchema({\"type\": \"object\", \"required\": [\"detail\"], \"properties\": {\"detail\": {\"type\": \"string\"}}}));",
+              "pm.test('Business rule is explained', () => pm.expect(pm.response.json().detail).to.include('cannot be cancelled'));"
+            ]
+          }
+        }
+      ]
     }
   ]
 }
