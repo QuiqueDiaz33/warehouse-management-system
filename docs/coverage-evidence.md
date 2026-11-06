@@ -7,9 +7,9 @@ pytest 8.4.2, pytest-cov 7.0.0 y Vitest 5.1.0.
 
 | Componente | Archivos de prueba | Pruebas aprobadas | Cobertura de líneas |
 | --- | ---: | ---: | ---: |
-| Backend | 6 | 50 | 55 % |
+| Backend | 6 | 60 | 55 % |
 | Frontend | 1 | 3 | 1.54 % global |
-| Total | 7 | 53 | No se combina porque las herramientas usan universos distintos |
+| Total | 7 | 63 | No se combina porque las herramientas usan universos distintos |
 
 El módulo `backend/auth.py`, el router `backend/routers/auth.py` y el router
 `backend/routers/items.py` alcanzaron 100 % de cobertura. `backend/main.py`
