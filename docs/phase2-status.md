@@ -17,12 +17,12 @@ Fecha de corte: 4 de noviembre de 2026.
 - Uso documentado de dobles en más de tres pruebas.
 - Ejecución automatizada dentro del pipeline.
 - Cobertura actual documentada en `docs/coverage-evidence.md`.
-- Pendiente: demostrar el incremento de 20 puntos contra una línea base
-  porcentual de E2.
+- Incremento demostrado: línea base medida en el commit `d8dedde` (0 %, sin
+  suite unitaria); los seis módulos críticos suben entre +32 y +100 pp.
 
 ## E11. Pruebas de API
 
-- Colección Postman versionada con 15 solicitudes.
+- Colección Postman versionada con 22 solicitudes (111 aserciones) y flujo de ventas encadenado.
 - Ejecución Newman automatizada y aprobada en el pipeline.
 - El informe final debe incluir el flujo encadenado y una captura del reporte
   Newman generado como artefacto.
