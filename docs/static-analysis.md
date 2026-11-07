@@ -40,7 +40,19 @@ Quité esa IP de los orígenes por defecto. En el código solo queda localhost p
 
 Agregué una prueba en [tests/backend/test_cors.py](../tests/backend/test_cors.py) que falla si se vuelve a escribir una dirección de red en los orígenes por defecto.
 
-Con este cambio, al llegar a main se espera que vulnerabilidades y code smells bajen de 1 a 0, la deuda técnica a 0 min y la calificación de seguridad de B a A. Los números finales se registran después del análisis de main.
+El cambio llegó a main con el PR #22. En el análisis de main del 6 de noviembre, sobre el commit c760deb, vulnerabilidades y code smells bajaron de 1 a 0, la deuda técnica de 30 min a 0 min y la calificación de seguridad de B a A.
+
+| Métrica | Inicial (d8dedde) | Antes de la corrección (fe04865) | Final (c760deb) |
+| --- | ---: | ---: | ---: |
+| Bugs | 0 | 0 | 0 |
+| Vulnerabilidades | 1 | 1 | 0 |
+| Code smells | 1 | 1 | 0 |
+| Duplicación | 4.1 % | 5.3 % | 5.3 % |
+| Deuda técnica | 30 min | 30 min | 0 min |
+| Security hotspots | 0 | 0 | 0 |
+| Cobertura | sin dato | 33.3 % | 33.3 % |
+| Calificación de seguridad | B | B | A |
+| Quality gate | sin gate | aprobado | aprobado |
 
 ## Quality gate
 

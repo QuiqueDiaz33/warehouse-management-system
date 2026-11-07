@@ -22,7 +22,7 @@ Fecha de corte: 4 de noviembre de 2026.
 
 ## E11. Pruebas de API
 
-- Colección Postman versionada con 22 solicitudes (111 aserciones) y flujo de ventas encadenado.
+- Colección Postman versionada con 26 solicitudes (135 aserciones) y flujo de ventas encadenado que incluye línea de venta, reserva y liberación de stock.
 - Ejecución Newman automatizada y aprobada en el pipeline.
 - El informe final debe incluir el flujo encadenado y una captura del reporte
   Newman generado como artefacto.
@@ -37,18 +37,19 @@ Fecha de corte: 4 de noviembre de 2026.
 
 ## E13. Integración y despliegue continuo
 
-- Orden actual: build, unitarias, Sonar/Quality Gate, Postman y compuerta.
-- Pipeline #24 aprobado en `main` en 2 minutos 35 segundos.
-- La etapa `Deployment gate` no ejecuta un despliegue a Azure; solo confirma
-  que las validaciones previas pasaron. Falta automatizar el despliegue o
-  documentar y obtener aceptación para una promoción manual.
+- Seis etapas en orden: build, unitarias, SonarCloud con quality gate, Postman,
+  compuerta y despliegue a Azure.
+- El despliegue corre con cada push a main mediante OIDC. El primero se ejecutó
+  el 6 de noviembre con el commit c760deb, con smoke test aprobado.
+- Detalle en [deployment.md](deployment.md).
 
 ## E14. Pruebas de carga
 
 - Escenario k6 ejecutado sobre Azure con dos endpoints críticos.
 - Rampa a 50 usuarios y cinco minutos sostenidos.
 - Promedio, p95, throughput y error documentados.
-- Conclusión: el plan F1 no cumple los objetivos de rendimiento definidos.
+- Comparado con RNF-01 y RNF-02 de E1: no se cumplen. El p95 fue 29.6 s frente
+  a un máximo de 3 s y la tasa de error 24.66 % frente a 1 %.
 
 ## E15. Video
 
