@@ -28,3 +28,7 @@ def test_cors_origins_trim_empty_and_duplicate_values(monkeypatch):
         "https://qa.example.com",
     ]
 
+
+
+def test_local_defaults_do_not_hardcode_network_addresses():
+    assert main.LOCAL_CORS_ORIGINS == ["http://localhost:5173"]
