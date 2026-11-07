@@ -8,9 +8,10 @@ from routers import delivery_challans, items,suppliers,customers,stock,purchase_
 
 load_dotenv()
 
+# Origen del servidor de desarrollo de Vite. Otros orígenes, como una IP de la
+# red local o el frontend publicado, se agregan con la variable CORS_ORIGINS.
 LOCAL_CORS_ORIGINS = [
     "http://localhost:5173",
-    "http://192.168.0.103:5173",
 ]
 
 
