@@ -1,19 +1,19 @@
 # Checklist final de la Fase 2
 
-Fecha de revisión: 4 de noviembre de 2026.
+Fecha de revisión: 6 de noviembre de 2026.
 
 ## Resumen
 
-| Entregable | Estado | Nivel de cierre |
-| --- | --- | ---: |
-| E9 Estrategia de ramas | Parcial | 75 % |
-| E10 Pruebas unitarias | Parcial avanzado | 85 % |
-| E11 Pruebas de API | Completo técnicamente | 90 % |
-| E12 Análisis estático | Parcial | 70 % |
-| E13 Pipeline CI CD | Parcial | 75 % |
-| E14 Pruebas de carga | Completo | 95 % |
-| E15 Video de defensa | Pendiente | 10 % |
-| E16 Bitácora individual | Borrador completo | 85 % |
+| Entregable | Estado | Evidencia principal |
+| --- | --- | --- |
+| E9 Estrategia de ramas | Completo | PR #15 a #22 revisados por otro integrante; qa y main exigen aprobación y el pipeline |
+| E10 Pruebas unitarias | Completo | 61 pruebas backend y 3 frontend; línea base medida en d8dedde |
+| E11 Pruebas de API | Completo | 26 solicitudes, 135 aserciones, flujo de ventas encadenado en Newman |
+| E12 Análisis estático | Completo | SonarCloud sin vulnerabilidades ni code smells; quality gate aprobado |
+| E13 Pipeline CI CD | Completo | Seis etapas con despliegue a Azure por OIDC y smoke test |
+| E14 Pruebas de carga | Completo | k6 sobre Azure; comparado con RNF-01 y RNF-02 de E1, no se cumplen |
+| E15 Video de defensa | Pendiente | Grabación y publicación |
+| E16 Bitácora individual | En revisión | Ajustar fechas y formato |
 
 ## E9 Estrategia de ramas y control de cambios
 

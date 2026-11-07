@@ -33,8 +33,13 @@ El backend se despliega con OIDC, sin perfil de publicación ni contraseñas. La
 autenticación básica del App Service está deshabilitada.
 
 - Identidad administrada `id-github-wlms-deploy` en `rg-wlms-qa-2026`.
-- Credencial federada que solo acepta tokens de GitHub Actions para
-  `repo:QuiqueDiaz33/warehouse-management-system:environment:production`.
+- Credenciales federadas que solo aceptan tokens de GitHub Actions del entorno
+  production de este repositorio. Hay dos porque GitHub empezó a enviar el
+  subject con los identificadores numéricos del dueño y del repositorio:
+  `repo:QuiqueDiaz33@141443537/warehouse-management-system@1443792730:environment:production`.
+  El primer despliegue falló por eso con el error AADSTS700213 y se resolvió
+  agregando la credencial con ese formato. La de formato anterior se mantiene
+  por compatibilidad.
 - Rol `Website Contributor` limitado al App Service, no a la suscripción.
 
 El frontend usa el token de despliegue de Static Web Apps.
@@ -68,6 +73,10 @@ az identity federated-credential create -g $RG --identity-name $ID -n github-pro
   --issuer https://token.actions.githubusercontent.com \
   --subject repo:QuiqueDiaz33/warehouse-management-system:environment:production \
   --audiences api://AzureADTokenExchange -o none
+az identity federated-credential create -g $RG --identity-name $ID -n github-production-ids \
+  --issuer https://token.actions.githubusercontent.com \
+  --subject "repo:QuiqueDiaz33@141443537/warehouse-management-system@1443792730:environment:production" \
+  --audiences api://AzureADTokenExchange -o none
 az role assignment create \
   --assignee-object-id $(az identity show -g $RG -n $ID --query principalId -o tsv) \
   --assignee-principal-type ServicePrincipal --role "Website Contributor" \
@@ -78,6 +87,14 @@ echo "AZURE_SUBSCRIPTION_ID=$(az account show --query id -o tsv)"
 ```
 
 Los tres valores que imprime se guardan como secretos del entorno `production`.
+
+## Primer despliegue
+
+El 6 de noviembre de 2026, con el merge del PR #22 a main (commit c760deb), la
+etapa se ejecutó completa: inicio de sesión OIDC, backend, frontend y smoke
+test. Después del despliegue, el contrato publicado en /openapi.json muestra
+SOLineCreate con so_id, item_id, quantity y unit_price, y POST
+/sales-orders/lines sin token responde 401 en lugar del 500 anterior.
 
 ## Migraciones de base de datos
 
