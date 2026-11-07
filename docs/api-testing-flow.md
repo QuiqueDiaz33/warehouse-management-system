@@ -1,6 +1,6 @@
 # E11. Pruebas de API: cobertura y flujo de negocio
 
-Colección: `postman/WLMS-Phase2.postman_collection.json` (22 solicitudes, 111 aserciones).
+Colección: `postman/WLMS-Phase2.postman_collection.json` (26 solicitudes, 135 aserciones).
 Ejecución: etapa *Postman API tests* del pipeline mediante Newman, con reporte JUnit.
 
 ## Tipos de aserción
@@ -10,32 +10,34 @@ Cada solicitud valida tres aspectos:
 | Aspecto | Cómo se valida |
 | --- | --- |
 | Código de respuesta | `pm.response.to.have.status(...)`; en recursos protegidos el código esperado depende del rol (200 o 403) |
-| Esquema | `pm.response.to.have.jsonSchema(...)` con tipos y campos obligatorios en las 22 solicitudes |
+| Esquema | `pm.response.to.have.jsonSchema(...)` con tipos y campos obligatorios en las 26 solicitudes |
 | Contenido | Valores concretos: identidad del backend, token *bearer*, totales de línea, estados `Pending` y `Cancelled`, mensajes de regla de negocio |
 
 Además, a nivel de colección se valida tiempo de respuesta menor a 3 s y tipo `application/json`.
 
 ## Flujo de negocio encadenado (ventas)
 
-El usuario de pruebas del pipeline tiene rol **Logistics Staff**, por lo que el
-flujo cubre el ciclo de vida de una orden de venta, que es el proceso que ese rol
-opera en WLMS.
+El usuario de pruebas del pipeline tiene rol Logistics Staff, así que el flujo recorre el ciclo de vida de una orden de venta, que es el proceso que opera ese rol. Cada paso usa datos que dejó el anterior.
 
-| Paso | Solicitud | Dato que produce | Dato que consume |
+| Paso | Solicitud | Qué produce | Qué usa |
 | --- | --- | --- | --- |
-| 04 | `POST /auth/login` | `accessToken` | credenciales (secretos de GitHub) |
-| 05 | `GET /auth/me` | `userId`, `currentRole` | `accessToken` |
-| 09 | `GET /customers/` | `customerId`, `customerName` | `accessToken` |
-| 16 | `POST /sales-orders/` | `soId` (`Pending`, `Unpaid`) | `customerId`, `userId` |
-| 17 | `POST /sales-orders/advance` | estado `Processing` | `soId` |
-| 18 | `GET /sales-orders/{soId}` | verifica cliente y estado | `soId`, `customerName` |
-| 19 | `POST /sales-orders/cancel` | estado `Cancelled`, reservas liberadas | `soId` |
-| 20 | `GET /sales-orders/{soId}` | verifica `Cancelled` | `soId` |
-| 21 | `POST /sales-orders/advance` | rechazo 400: no se avanza una orden cancelada | `soId` |
-| 22 | `POST /sales-orders/cancel` | rechazo 400: no se cancela dos veces | `soId` |
+| 04 | POST /auth/login | token de acceso | credenciales guardadas como secretos de GitHub |
+| 05 | GET /auth/me | id y rol del usuario | token |
+| 09 | GET /customers/ | cliente para la orden | token |
+| 11 | GET /stock/ | un ítem con existencia y sus cantidades iniciales | token |
+| 16 | POST /sales-orders/ | orden nueva en Pending y Unpaid | cliente y usuario |
+| 17 | POST /sales-orders/lines | línea de 1 unidad a 12.50 y stock reservado | orden e ítem |
+| 18 | POST /sales-orders/lines | rechazo 422 por cantidad con 3 decimales | orden |
+| 19 | POST /sales-orders/lines | rechazo 422 por campos faltantes | orden |
+| 20 | POST /sales-orders/advance | orden en Processing | orden |
+| 21 | GET /sales-orders/{id} | verifica cliente, estado, línea y total de 12.50 | orden |
+| 22 | POST /sales-orders/cancel | orden en Cancelled y reservas liberadas | orden |
+| 23 | GET /stock/ | verifica que el stock vuelve a sus cantidades iniciales | cantidades del paso 11 |
+| 24 | GET /sales-orders/{id} | verifica Cancelled | orden |
+| 25 | POST /sales-orders/advance | rechazo 400, una orden cancelada no avanza | orden |
+| 26 | POST /sales-orders/cancel | rechazo 400, no se cancela dos veces | orden |
 
-La orden no lleva líneas, por lo que no reserva ni altera inventario. Cada
-ejecución deja una orden de venta cancelada.
+La línea reserva una unidad y la cancelación la libera, y el paso 23 comprueba que el inventario termina igual que al inicio. Cada ejecución deja una orden cancelada que se puede identificar por el usuario de CI.
 
 ## Hallazgo detectado durante el diseño del flujo
 
@@ -62,13 +64,12 @@ corrigió en el PR #16:
 - `tests/backend/test_sales_order_lines.py` prueba el modelo, la función y el
   endpoint por HTTP con `TestClient`.
 
-Pendiente: agregar la línea de venta al flujo de Newman. En CI, Newman prueba
-contra el backend publicado en Azure, así que esos pasos se integran cuando la
-corrección esté desplegada; antes fallarían con el 500 del código anterior.
+La corrección llegó a Azure con el primer despliegue automático del 6 de noviembre, y desde entonces el flujo de Newman también agrega una línea de venta y prueba los rechazos 422.
 
 ## Validación local
 
 El 4 de noviembre de 2026 la colección se ejecutó contra el backend FastAPI y el
 esquema de `SQL/` cargado en PostgreSQL 16 local, con un usuario
 Logistics Staff y con un usuario Administrator: en ambos casos 22 solicitudes,
-111 aserciones y 0 fallos.
+111 aserciones y 0 fallos. El 6 de noviembre, con los pasos de línea de venta,
+la misma validación dio 26 solicitudes, 135 aserciones y 0 fallos.
