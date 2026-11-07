@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "wlms-phase2-api-tests",
     "name": "WLMS Phase 2 API Tests",
-    "description": "22 solicitudes automatizadas con aserciones de estado, esquema JSON y contenido. Incluye un flujo de negocio encadenado de ventas: login -> usuario -> cliente -> crear orden de venta -> avanzar a Processing -> verificar -> cancelar -> verificar Cancelled -> rechazar avance y segunda cancelación. La orden no lleva líneas, por lo que no reserva ni altera inventario.",
+    "description": "26 solicitudes automatizadas con aserciones de estado, esquema JSON y contenido. Incluye un flujo de ventas encadenado: login -> usuario -> cliente -> stock -> crear orden de venta -> agregar línea (reserva stock) -> rechazos 422 por validación -> avanzar a Processing -> verificar -> cancelar -> verificar que el stock reservado se libera -> verificar Cancelled -> rechazar avance y segunda cancelación. Al final el inventario queda igual que al inicio.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "event": [
@@ -51,6 +51,22 @@
     },
     {
       "key": "soId",
+      "value": ""
+    },
+    {
+      "key": "stockItemId",
+      "value": ""
+    },
+    {
+      "key": "stockItemName",
+      "value": ""
+    },
+    {
+      "key": "stockAvailableBefore",
+      "value": ""
+    },
+    {
+      "key": "stockReservedBefore",
       "value": ""
     }
   ],
@@ -327,7 +343,9 @@
             "exec": [
               "pm.test('Status 200', () => pm.response.to.have.status(200));",
               "pm.test('Stock response is an array', () => pm.expect(pm.response.json()).to.be.an('array'));",
-              "pm.test('Response matches JSON schema', () => pm.response.to.have.jsonSchema({\"type\": \"array\", \"items\": {\"type\": \"object\", \"required\": [\"item_id\", \"item_name\", \"uom_symbol\", \"available_quantity\", \"reserved_quantity\", \"total_on_hand\", \"reorder_level\", \"is_low_stock\"], \"properties\": {\"item_id\": {\"type\": \"integer\"}, \"item_name\": {\"type\": \"string\"}, \"uom_symbol\": {\"type\": \"string\"}, \"available_quantity\": {\"type\": \"number\"}, \"reserved_quantity\": {\"type\": \"number\"}, \"total_on_hand\": {\"type\": \"number\"}, \"reorder_level\": {\"type\": \"number\"}, \"is_low_stock\": {\"type\": \"boolean\"}}}}));"
+              "pm.test('Response matches JSON schema', () => pm.response.to.have.jsonSchema({\"type\": \"array\", \"items\": {\"type\": \"object\", \"required\": [\"item_id\", \"item_name\", \"uom_symbol\", \"available_quantity\", \"reserved_quantity\", \"total_on_hand\", \"reorder_level\", \"is_low_stock\"], \"properties\": {\"item_id\": {\"type\": \"integer\"}, \"item_name\": {\"type\": \"string\"}, \"uom_symbol\": {\"type\": \"string\"}, \"available_quantity\": {\"type\": \"number\"}, \"reserved_quantity\": {\"type\": \"number\"}, \"total_on_hand\": {\"type\": \"number\"}, \"reorder_level\": {\"type\": \"number\"}, \"is_low_stock\": {\"type\": \"boolean\"}}}}));",
+              "const withStock = pm.response.json().find(s => Number(s.available_quantity) >= 1);",
+              "if (withStock) { pm.collectionVariables.set('stockItemId', withStock.item_id); pm.collectionVariables.set('stockItemName', withStock.item_name); pm.collectionVariables.set('stockAvailableBefore', withStock.available_quantity); pm.collectionVariables.set('stockReservedBefore', withStock.reserved_quantity); }"
             ]
           }
         }
@@ -452,7 +470,110 @@
       ]
     },
     {
-      "name": "17 - Flow: advance sales order to Processing",
+      "name": "17 - Flow: add sales order line",
+      "request": {
+        "method": "POST",
+        "url": "{{baseUrl}}/sales-orders/lines",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"so_id\": {{soId}},\n  \"item_id\": {{stockItemId}},\n  \"quantity\": 1,\n  \"unit_price\": 12.50\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Flow precondition: an item with available stock exists', () => pm.expect(pm.collectionVariables.get('stockItemId')).to.not.be.oneOf([undefined, null, '']));",
+              "pm.test('Status 200', () => pm.response.to.have.status(200));",
+              "pm.test('Response matches JSON schema', () => pm.response.to.have.jsonSchema({\"type\": \"object\", \"required\": [\"message\"], \"properties\": {\"message\": {\"type\": \"string\"}}}));",
+              "pm.test('Line is accepted and stock is reserved', () => pm.expect(pm.response.json().message).to.include('stock reserved'));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "18 - Flow: reject line with 3 decimals",
+      "request": {
+        "method": "POST",
+        "url": "{{baseUrl}}/sales-orders/lines",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"so_id\": {{soId}},\n  \"item_id\": {{stockItemId}},\n  \"quantity\": 0.001,\n  \"unit_price\": 12.50\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 422', () => pm.response.to.have.status(422));",
+              "pm.test('Validation error matches JSON schema', () => pm.response.to.have.jsonSchema({\"type\": \"object\", \"required\": [\"detail\"], \"properties\": {\"detail\": {\"type\": \"array\", \"minItems\": 1, \"items\": {\"type\": \"object\", \"required\": [\"loc\", \"msg\", \"type\"], \"properties\": {\"loc\": {\"type\": \"array\"}, \"msg\": {\"type\": \"string\"}, \"type\": {\"type\": \"string\"}}}}}}));",
+              "pm.test('Error points to quantity', () => pm.expect(pm.response.json().detail.map(d => d.loc.join('.')).join(' ')).to.include('quantity'));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "19 - Flow: reject line with missing fields",
+      "request": {
+        "method": "POST",
+        "url": "{{baseUrl}}/sales-orders/lines",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"so_id\": {{soId}},\n  \"item_id\": {{stockItemId}}\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 422', () => pm.response.to.have.status(422));",
+              "pm.test('Validation error matches JSON schema', () => pm.response.to.have.jsonSchema({\"type\": \"object\", \"required\": [\"detail\"], \"properties\": {\"detail\": {\"type\": \"array\", \"minItems\": 1, \"items\": {\"type\": \"object\", \"required\": [\"loc\", \"msg\", \"type\"], \"properties\": {\"loc\": {\"type\": \"array\"}, \"msg\": {\"type\": \"string\"}, \"type\": {\"type\": \"string\"}}}}}}));",
+              "pm.test('Error lists the missing fields', () => { const locs = pm.response.json().detail.map(d => d.loc.join('.')).join(' '); pm.expect(locs).to.include('quantity'); pm.expect(locs).to.include('unit_price'); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "20 - Flow: advance sales order to Processing",
       "request": {
         "method": "POST",
         "url": "{{baseUrl}}/sales-orders/advance",
@@ -486,7 +607,7 @@
       ]
     },
     {
-      "name": "18 - Flow: verify sales order detail",
+      "name": "21 - Flow: verify sales order detail and line",
       "request": {
         "method": "GET",
         "url": "{{baseUrl}}/sales-orders/{{soId}}"
@@ -500,14 +621,15 @@
               "const body = pm.response.json();",
               "pm.test('SO detail matches JSON schema', () => pm.response.to.have.jsonSchema({\"type\": \"object\", \"required\": [\"so_id\", \"customer_name\", \"created_by\", \"status\", \"payment_status\", \"lines\"], \"properties\": {\"so_id\": {\"type\": \"integer\"}, \"customer_name\": {\"type\": \"string\"}, \"created_by\": {\"type\": \"string\"}, \"status\": {\"type\": \"string\"}, \"payment_status\": {\"type\": \"string\"}, \"lines\": {\"type\": \"array\", \"items\": {\"type\": \"object\", \"required\": [\"item_name\", \"ordered_quantity\", \"shipped_quantity\", \"pending_quantity\", \"unit_price\", \"line_total\", \"uom_symbol\"], \"properties\": {\"item_name\": {\"type\": \"string\"}, \"ordered_quantity\": {\"type\": \"number\"}, \"shipped_quantity\": {\"type\": \"number\"}, \"pending_quantity\": {\"type\": \"number\"}, \"unit_price\": {\"type\": \"number\"}, \"line_total\": {\"type\": \"number\"}, \"uom_symbol\": {\"type\": \"string\"}}}}}}));",
               "pm.test('Detail reflects chained data', () => { pm.expect(body.so_id).to.eql(Number(pm.collectionVariables.get('soId'))); pm.expect(body.customer_name).to.eql(pm.collectionVariables.get('customerName')); });",
-              "pm.test('Status advanced Pending -> Processing', () => pm.expect(body.status).to.eql('Processing'));"
+              "pm.test('Status advanced Pending -> Processing', () => pm.expect(body.status).to.eql('Processing'));",
+              "pm.test('Line is stored with the requested values', () => { pm.expect(body.lines).to.have.lengthOf(1); const l = body.lines[0]; pm.expect(l.item_name).to.eql(pm.collectionVariables.get('stockItemName')); pm.expect(Number(l.ordered_quantity)).to.eql(1); pm.expect(Number(l.pending_quantity)).to.eql(1); pm.expect(Number(l.unit_price)).to.eql(12.5); pm.expect(Number(l.line_total)).to.eql(12.5); });"
             ]
           }
         }
       ]
     },
     {
-      "name": "19 - Flow: cancel sales order",
+      "name": "22 - Flow: cancel sales order",
       "request": {
         "method": "POST",
         "url": "{{baseUrl}}/sales-orders/cancel",
@@ -541,7 +663,29 @@
       ]
     },
     {
-      "name": "20 - Flow: verify cancelled status",
+      "name": "23 - Flow: verify reserved stock was released",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/stock/"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 200', () => pm.response.to.have.status(200));",
+              "const row = pm.response.json().find(s => s.item_id === Number(pm.collectionVariables.get('stockItemId')));",
+              "pm.test('Item is present in stock', () => pm.expect(row).to.be.an('object'));",
+              "pm.test('Stock row has the expected types', () => { pm.expect(row.item_id).to.be.a('number'); pm.expect(row.available_quantity).to.be.a('number'); pm.expect(row.reserved_quantity).to.be.a('number'); });",
+              "pm.test('Response matches JSON schema', () => pm.response.to.have.jsonSchema({type: 'array', items: {type: 'object', required: ['item_id', 'available_quantity', 'reserved_quantity']}}));",
+              "pm.test('Available and reserved quantities are back to their initial values', () => { pm.expect(Number(row.available_quantity)).to.eql(Number(pm.collectionVariables.get('stockAvailableBefore'))); pm.expect(Number(row.reserved_quantity)).to.eql(Number(pm.collectionVariables.get('stockReservedBefore'))); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "24 - Flow: verify cancelled status",
       "request": {
         "method": "GET",
         "url": "{{baseUrl}}/sales-orders/{{soId}}"
@@ -560,7 +704,7 @@
       ]
     },
     {
-      "name": "21 - Flow: reject advancing a cancelled order",
+      "name": "25 - Flow: reject advancing a cancelled order",
       "request": {
         "method": "POST",
         "url": "{{baseUrl}}/sales-orders/advance",
@@ -594,7 +738,7 @@
       ]
     },
     {
-      "name": "22 - Flow: reject second cancellation",
+      "name": "26 - Flow: reject second cancellation",
       "request": {
         "method": "POST",
         "url": "{{baseUrl}}/sales-orders/cancel",
